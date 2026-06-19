@@ -80,6 +80,30 @@ class _InputBarState extends ConsumerState<InputBar> {
 
     void sendAndClose(List<int> bytes) => send(bytes);
 
+    void sendText(String text) {
+      if (!isConnected) return;
+      ref
+          .read(sshSessionProvider(widget.machineId).notifier)
+          .sendText(text);
+    }
+
+    Widget sectionHeader(String label) => Padding(
+          padding: const EdgeInsets.only(top: 8, bottom: 2),
+          child: Text(
+            label,
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w400,
+              color: colorScheme.onSurfaceVariant,
+            ),
+          ),
+        );
+
+    Widget textChip(_TextCmd c) => ActionChip(
+          label: Text(c.label, style: const TextStyle(fontSize: 12)),
+          onPressed: isConnected ? () => sendText('${c.command}\n') : null,
+        );
+
     Widget arrowBtn(IconData icon, List<int> bytes) => SizedBox(
           width: 36,
           height: 36,
@@ -93,24 +117,66 @@ class _InputBarState extends ConsumerState<InputBar> {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        // ── Expandable command chips (shown above the main bar) ──────
+        // ── Expandable command panel (sectioned, scrollable) ─────────
         if (_commandsVisible)
-          Container(
-            color: colorScheme.surfaceContainerHighest,
-            width: double.infinity,
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            child: Wrap(
-              spacing: 8,
-              runSpacing: 4,
-              children: [
-                for (final cmd in _commands)
-                  ActionChip(
-                    label: Text(cmd.label,
-                        style: const TextStyle(fontSize: 12)),
-                    onPressed:
-                        isConnected ? () => sendAndClose(cmd.bytes) : null,
-                  ),
-              ],
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxHeight: 240),
+            child: SingleChildScrollView(
+              child: Container(
+                color: colorScheme.surfaceContainerHighest,
+                width: double.infinity,
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Control section
+                    sectionHeader('Control'),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 4,
+                      children: [
+                        for (final cmd in _commands)
+                          ActionChip(
+                            label: Text(cmd.label,
+                                style: const TextStyle(fontSize: 12)),
+                            onPressed: isConnected
+                                ? () => sendAndClose(cmd.bytes)
+                                : null,
+                          ),
+                      ],
+                    ),
+                    // Claude section
+                    sectionHeader('Claude'),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 4,
+                      children: [
+                        for (final cmd in _claudeCommands) textChip(cmd),
+                      ],
+                    ),
+                    // Shell section
+                    sectionHeader('Shell'),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 4,
+                      children: [
+                        for (final cmd in _shellCommands) textChip(cmd),
+                      ],
+                    ),
+                    // Session section
+                    sectionHeader('Session'),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 4,
+                      children: [
+                        for (final cmd in _sessionCommands) textChip(cmd),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
             ),
           ),
 
