@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:speech_to_text/speech_to_text.dart';
 
 import '../providers/ssh_session_provider.dart';
+import 'voice_bottom_sheet.dart';
 
 const _arrowLeft  = [0x1b, 0x5b, 0x44];
 const _arrowUp    = [0x1b, 0x5b, 0x41];
@@ -64,6 +66,63 @@ class InputBar extends ConsumerStatefulWidget {
 
 class _InputBarState extends ConsumerState<InputBar> {
   bool _commandsVisible = false;
+
+  // Voice dictation state (VOZ-01..04)
+  final _speech = SpeechToText();
+  bool _voiceAvailable = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _initSpeech();
+  }
+
+  Future<void> _initSpeech() async {
+    final available = await _speech.initialize(
+      onStatus: (_) {},
+      onError: (_) {},
+    );
+    if (mounted) setState(() => _voiceAvailable = available);
+  }
+
+  @override
+  void dispose() {
+    _speech.cancel();
+    super.dispose();
+  }
+
+  Future<void> _launchVoiceRecognition() async {
+    if (!_voiceAvailable || _speech.isListening) return;
+    await _speech.listen(
+      onResult: (result) {
+        if (result.finalResult && result.recognizedWords.isNotEmpty) {
+          _speech.stop();
+          if (mounted) _showReviewSheet(result.recognizedWords);
+        }
+      },
+      listenOptions: SpeechListenOptions(
+        listenFor: const Duration(seconds: 30),
+        pauseFor: const Duration(seconds: 5),
+        localeId: null,
+      ),
+    );
+  }
+
+  void _showReviewSheet(String transcript) {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      builder: (_) => VoiceBottomSheet(
+        transcript: transcript,
+        onSend: () {
+          ref
+              .read(sshSessionProvider(widget.machineId).notifier)
+              .sendText('$transcript\n');
+          Navigator.of(context).pop();
+        },
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -209,6 +268,22 @@ class _InputBarState extends ConsumerState<InputBar> {
               ),
 
               const Spacer(),
+
+              // Mic button — hidden when voice is unavailable (VOZ-04)
+              if (_voiceAvailable)
+                Semantics(
+                  label: 'Start voice input',
+                  child: SizedBox(
+                    width: 36,
+                    height: 36,
+                    child: IconButton(
+                      padding: EdgeInsets.zero,
+                      tooltip: 'Voice input',
+                      icon: const Icon(Icons.mic, size: 20),
+                      onPressed: isConnected ? _launchVoiceRecognition : null,
+                    ),
+                  ),
+                ),
 
               // Arrow keys (right-aligned)
               arrowBtn(Icons.arrow_back,     _arrowLeft),
