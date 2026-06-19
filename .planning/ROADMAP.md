@@ -13,7 +13,7 @@ Three phases deliver a Flutter SSH remote control for Claude Code. Phase 1 estab
 
 Decimal phases appear between their surrounding integers in numeric order.
 
-- [ ] **Phase 1: SSH Terminal** - Working SSH connection with real ANSI terminal and basic text input
+- [x] **Phase 1: SSH Terminal** - Working SSH connection with real ANSI terminal and basic text input (completed 2026-06-19)
 - [ ] **Phase 2: Claude Code Remote** - Quick commands panel, voice dictation, and permission approval cards
 - [ ] **Phase 3: Polish and Stability** - PTY resize hardening, iOS keepAlive, connection robustness, visual polish
 
@@ -32,19 +32,19 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. User can type a prompt in the input bar, send it, and watch Claude Code respond in real time in the terminal
   4. User can interrupt a running process with Ctrl+C, close stdin with Ctrl+D, and send ESC — all without the app crashing when the SSH connection drops unexpectedly
 
-**Plans:** 3 plans
+**Plans:** 3/3 plans complete
 Plans:
 **Wave 1**
 
-- [ ] 01-01-PLAN.md — Walking skeleton: Flutter project, packages, Android hardening, dark theme, routing
+- [x] 01-01-PLAN.md — Walking skeleton: Flutter project, packages, Android hardening, dark theme, routing
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 01-02-PLAN.md — Machine manager: add/edit/delete machines with encrypted credential storage
+- [x] 01-02-PLAN.md — Machine manager: add/edit/delete machines with encrypted credential storage
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
-- [ ] 01-03-PLAN.md — SSH terminal: live ANSI session, InputBar, control signals, crash-safe disconnect
+- [x] 01-03-PLAN.md — SSH terminal: live ANSI session, InputBar, control signals, crash-safe disconnect
 
 **UI hint**: yes
 
@@ -86,6 +86,6 @@ Phases execute in numeric order: 1 → 2 → 3
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. SSH Terminal | 0/3 | Not started | - |
+| 1. SSH Terminal | 3/3 | Complete   | 2026-06-19 |
 | 2. Claude Code Remote | 0/TBD | Not started | - |
 | 3. Polish and Stability | 0/TBD | Not started | - |
