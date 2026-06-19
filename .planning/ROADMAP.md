@@ -14,7 +14,7 @@ Three phases deliver a Flutter SSH remote control for Claude Code. Phase 1 estab
 Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: SSH Terminal** - Working SSH connection with real ANSI terminal and basic text input (completed 2026-06-19)
-- [ ] **Phase 2: Claude Code Remote** - Quick commands panel, voice dictation, and permission approval cards
+- [x] **Phase 2: Claude Code Remote** - Quick commands panel, voice dictation, and permission approval cards (completed 2026-06-19)
 - [ ] **Phase 3: Polish and Stability** - PTY resize hardening, iOS keepAlive, connection robustness, visual polish
 
 ## Phase Details
@@ -61,7 +61,7 @@ Plans:
   3. When Claude Code displays a permission prompt, a card appears automatically with Approve and Reject buttons that send the correct response to the terminal
   4. If voice recognition is unavailable on the device, the microphone button is hidden with no visible error
 
-**Plans:** 2/3 plans executed
+**Plans:** 3/3 plans complete
 
 Plans:
 
@@ -72,7 +72,7 @@ Plans:
 
 **Wave 2** *(blocked on Wave 1 — shares input_bar.dart with 02-01)*
 
-- [ ] 02-03-PLAN.md — Voice dictation: speech_to_text mic button, review bottom sheet, graceful unavailability
+- [x] 02-03-PLAN.md — Voice dictation: speech_to_text mic button, review bottom sheet, graceful unavailability
 
 **UI hint**: yes
 
@@ -99,5 +99,5 @@ Phases execute in numeric order: 1 → 2 → 3
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. SSH Terminal | 3/3 | Complete   | 2026-06-19 |
-| 2. Claude Code Remote | 2/3 | In Progress|  |
+| 2. Claude Code Remote | 3/3 | Complete   | 2026-06-19 |
 | 3. Polish and Stability | 0/TBD | Not started | - |

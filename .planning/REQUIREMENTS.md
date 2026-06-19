@@ -44,10 +44,10 @@
 
 ### Dictado de Voz
 
-- [ ] **VOZ-01**: Usuario puede mantener presionado el botón de micrófono para dictar un prompt
-- [ ] **VOZ-02**: Al soltar, el texto transcrito aparece en el campo de input para revisión
-- [ ] **VOZ-03**: El texto transcrito no se envía automáticamente — el usuario revisa y toca enviar
-- [ ] **VOZ-04**: Si el reconocimiento de voz no está disponible, el botón se oculta gracefully
+- [x] **VOZ-01**: Usuario puede mantener presionado el botón de micrófono para dictar un prompt
+- [x] **VOZ-02**: Al soltar, el texto transcrito aparece en el campo de input para revisión
+- [x] **VOZ-03**: El texto transcrito no se envía automáticamente — el usuario revisa y toca enviar
+- [x] **VOZ-04**: Si el reconocimiento de voz no está disponible, el botón se oculta gracefully
 
 ### Aprobación de Acciones
 
@@ -111,10 +111,10 @@
 | CMD-03 | Phase 2 | Complete |
 | CMD-04 | Phase 2 | Complete |
 | CMD-05 | Phase 2 | Complete |
-| VOZ-01 | Phase 2 | Pending |
-| VOZ-02 | Phase 2 | Pending |
-| VOZ-03 | Phase 2 | Pending |
-| VOZ-04 | Phase 2 | Pending |
+| VOZ-01 | Phase 2 | Complete |
+| VOZ-02 | Phase 2 | Complete |
+| VOZ-03 | Phase 2 | Complete |
+| VOZ-04 | Phase 2 | Complete |
 | APRO-01 | Phase 2 | Complete |
 | APRO-02 | Phase 2 | Complete |
 | APRO-03 | Phase 2 | Complete |
