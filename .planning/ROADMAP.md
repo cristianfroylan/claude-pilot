@@ -15,7 +15,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: SSH Terminal** - Working SSH connection with real ANSI terminal and basic text input (completed 2026-06-19)
 - [x] **Phase 2: Claude Code Remote** - Quick commands panel, voice dictation, and permission approval cards (completed 2026-06-19)
-- [ ] **Phase 3: Polish and Stability** - PTY resize hardening, iOS keepAlive, connection robustness, visual polish
+- [x] **Phase 3: Polish and Stability** - PTY resize hardening, iOS keepAlive, connection robustness, visual polish (completed 2026-06-19)
 
 ## Phase Details
 
@@ -100,4 +100,4 @@ Phases execute in numeric order: 1 → 2 → 3
 |-------|----------------|--------|-----------|
 | 1. SSH Terminal | 3/3 | Complete   | 2026-06-19 |
 | 2. Claude Code Remote | 3/3 | Complete   | 2026-06-19 |
-| 3. Polish and Stability | 0/TBD | Not started | - |
+| 3. Polish and Stability | 1/1 | Complete   | 2026-06-19 |

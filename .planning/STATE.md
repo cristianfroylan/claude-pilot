@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: completed
-stopped_at: Phase 2 UI-SPEC approved
-last_updated: "2026-06-19T21:57:20.367Z"
-last_activity: 2026-06-19 -- Phase 2 marked complete
+status: verifying
+stopped_at: Completed 03-polish-and-stability-01-PLAN.md
+last_updated: "2026-06-19T22:17:58.470Z"
+last_activity: 2026-06-19
 progress:
   total_phases: 3
-  completed_phases: 2
-  total_plans: 6
-  completed_plans: 6
-  percent: 67
+  completed_phases: 3
+  total_plans: 7
+  completed_plans: 7
+  percent: 100
 ---
 
 # Project State
@@ -27,8 +27,8 @@ See: .planning/PROJECT.md (updated 2026-06-19)
 
 Phase: 2 — COMPLETE
 Plan: 3 of 3
-Status: Phase 2 complete
-Last activity: 2026-06-19 -- Phase 2 marked complete
+Status: Phase complete — ready for verification
+Last activity: 2026-06-19
 
 Progress: [██████████] 100%
 
@@ -55,6 +55,7 @@ Progress: [██████████] 100%
 | Phase 02-claude-code-remote P01 | 98 | 2 tasks | 1 files |
 | Phase 02-claude-code-remote P02 | 203s | 3 tasks | 6 files |
 | Phase 02-claude-code-remote P03 | 8m | 3 tasks | 4 files |
+| Phase 03-polish-and-stability P01 | 138 | 3 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -68,6 +69,9 @@ Recent decisions affecting current work:
 - [Init]: Riverpod AsyncNotifier.autoDispose.family(machineId) — SSHClient propiedad del notifier, cierre automático
 - [Init]: Terminal de xterm ES el estado — sin wrapper extra, TerminalView consume directamente
 - [Init]: Voz nunca auto-envía — transcript va al campo de texto para revisión explícita
+- [Phase ?]: keepAliveInterval set to 30s on SSHClient to prevent iOS TCP drop during backgrounding (SSH-03)
+- [Phase ?]: SafeArea(top:true) wraps Scaffold body Column (not Scaffold) to avoid double padding with AppBar
+- [Phase ?]: ValueKey(keyboardHeight) on TerminalViewWrapper forces PTY reflow on keyboard/rotation events
 
 ### Pending Todos
 
@@ -91,6 +95,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-06-19T21:51:56.884Z
-Stopped at: Phase 2 UI-SPEC approved
+Last session: 2026-06-19T22:17:58.462Z
+Stopped at: Completed 03-polish-and-stability-01-PLAN.md
 Resume file: None

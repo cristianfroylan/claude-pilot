@@ -17,15 +17,15 @@
 
 - [ ] **SSH-01**: Usuario puede conectarse a una máquina vía SSH con un tap
 - [ ] **SSH-02**: La app muestra el estado de la conexión (conectando / conectado / error)
-- [ ] **SSH-03**: La app maneja el cierre inesperado de la conexión sin crashear (SSHStateError)
-- [ ] **SSH-04**: El PTY se dimensiona dinámicamente al ancho de pantalla y se actualiza si el teclado aparece/desaparece
+- [x] **SSH-03**: La app maneja el cierre inesperado de la conexión sin crashear (SSHStateError)
+- [x] **SSH-04**: El PTY se dimensiona dinámicamente al ancho de pantalla y se actualiza si el teclado aparece/desaparece
 
 ### Terminal View
 
 - [ ] **TERM-01**: El output de Claude Code se muestra en tiempo real con colores ANSI completos (256 colores)
 - [ ] **TERM-02**: Secuencias de cursor (spinners, diffs en-lugar) se renderizan correctamente mediante xterm.dart
 - [ ] **TERM-03**: El terminal tiene fondo oscuro, fuente monospace y scroll hacia el historial
-- [ ] **TERM-04**: El texto se adapta al ancho de pantalla sin cortar caracteres
+- [x] **TERM-04**: El texto se adapta al ancho de pantalla sin cortar caracteres
 
 ### Input
 
@@ -96,12 +96,12 @@
 | MACH-05 | Phase 1 | Pending |
 | SSH-01 | Phase 1 | Pending |
 | SSH-02 | Phase 1 | Pending |
-| SSH-03 | Phase 1 | Pending |
-| SSH-04 | Phase 1 | Pending |
+| SSH-03 | Phase 1 | Complete |
+| SSH-04 | Phase 1 | Complete |
 | TERM-01 | Phase 1 | Pending |
 | TERM-02 | Phase 1 | Pending |
 | TERM-03 | Phase 1 | Pending |
-| TERM-04 | Phase 1 | Pending |
+| TERM-04 | Phase 1 | Complete |
 | INP-01 | Phase 1 | Pending |
 | INP-02 | Phase 1 | Pending |
 | INP-03 | Phase 1 | Pending |
