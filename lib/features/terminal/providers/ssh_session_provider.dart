@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'dart:typed_data';
@@ -31,6 +32,11 @@ class SshSession extends _$SshSession {
 
   bool _disposed = false;
 
+  final _permissionController = StreamController<String>.broadcast();
+
+  /// Broadcast stream of raw stdout/stderr chunks for permission detection.
+  Stream<String> get permissionStream => _permissionController.stream;
+
   static const maxAttempts = 3;
 
   @override
@@ -40,6 +46,7 @@ class SshSession extends _$SshSession {
       _disposed = true;
       _sshSession?.close();
       _client?.close();
+      _permissionController.close(); // prevent stream leak (T-02-05)
     });
 
     final machine = ref.read(machineProvider.notifier).get(machineId);
@@ -55,8 +62,6 @@ class SshSession extends _$SshSession {
         return await _connectOnce(
             machine.host, machine.port, machine.username, password);
       } catch (e) {
-        // ignore: avoid_print
-        print('[SshSession] attempt ${attempt + 1}/$maxAttempts failed: $e');
         lastError = e;
         _client?.close();
         _client = null;
@@ -104,6 +109,7 @@ class SshSession extends _$SshSession {
       try {
         terminal.write(data);
       } catch (_) {}
+      _permissionController.add(data); // feed all stdout/stderr to permission detector
     }
 
     _sshSession!.stdout
