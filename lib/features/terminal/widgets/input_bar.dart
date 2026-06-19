@@ -21,6 +21,35 @@ class _Cmd {
   const _Cmd(this.label, this.bytes);
 }
 
+class _TextCmd {
+  final String label;
+  final String command;
+  const _TextCmd(this.label, this.command);
+}
+
+const _claudeCommands = [
+  _TextCmd('/clear',   '/clear'),
+  _TextCmd('/compact', '/compact'),
+  _TextCmd('/help',    '/help'),
+  _TextCmd('/cost',    '/cost'),
+  _TextCmd('/gsd',     '/gsd'),
+];
+
+const _shellCommands = [
+  _TextCmd('cd ~',  'cd ~'),
+  _TextCmd('cd ..', 'cd ..'),
+  _TextCmd('ls',    'ls'),
+  _TextCmd('pwd',   'pwd'),
+];
+
+const _sessionCommands = [
+  _TextCmd('claude',   'claude'),
+  _TextCmd('claude .', 'claude .'),
+  _TextCmd('exit',     'exit'),
+  _TextCmd('q',        'q'),
+  _TextCmd('\\q',      '\\q'),
+];
+
 /// InputBar — expandable Command panel + arrow keys + mic placeholder.
 ///
 /// Tapping "Command" expands a row of chips inline (no route push, no focus
