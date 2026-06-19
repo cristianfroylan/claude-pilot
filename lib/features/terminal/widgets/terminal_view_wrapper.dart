@@ -38,7 +38,8 @@ class TerminalViewWrapper extends ConsumerWidget {
         });
 
         // ExcludeSemantics: raw terminal output is noise for screen readers.
-        // autofocus: false — the InputBar TextField owns keyboard focus.
+        // autofocus: true — TerminalView takes focus on tap; the soft keyboard
+        // opens and xterm handles key input. InputBar has no TextField.
         return ExcludeSemantics(
           child: TerminalView(
             terminal,

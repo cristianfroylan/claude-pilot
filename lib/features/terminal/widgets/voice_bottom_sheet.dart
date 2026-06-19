@@ -25,9 +25,11 @@ class VoiceBottomSheet extends StatelessWidget {
         16,
         16 + MediaQuery.of(context).viewInsets.bottom,
       ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
+      child: SingleChildScrollView(
+        physics: const ClampingScrollPhysics(),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
           // Drag handle
           Center(
             child: Container(
@@ -86,6 +88,7 @@ class VoiceBottomSheet extends StatelessWidget {
           ),
           const SizedBox(height: 16),
         ],
+        ),
       ),
     );
   }
