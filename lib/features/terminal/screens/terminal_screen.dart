@@ -130,36 +130,47 @@ class TerminalScreen extends ConsumerWidget {
             ),
           ],
         ),
-        body: Column(
-          children: [
-            // Terminal view — expands to fill remaining space above InputBar.
-            Expanded(
-              child: sessionAsync.when(
-                loading: () =>
-                    const Center(child: CircularProgressIndicator()),
-                error: (e, _) => Center(child: Text('$e')),
-                data: (terminal) => TerminalViewWrapper(
-                  machineId: machineId,
-                  terminal: terminal,
+        body: SafeArea(
+          top: true,
+          bottom: false,
+          left: false,
+          right: false,
+          child: Column(
+            children: [
+              // Terminal view — expands to fill remaining space above InputBar.
+              Expanded(
+                child: sessionAsync.when(
+                  loading: () =>
+                      const Center(child: CircularProgressIndicator()),
+                  error: (e, _) => Center(child: Text('$e')),
+                  data: (terminal) {
+                    final keyboardHeight =
+                        MediaQuery.of(context).viewInsets.bottom;
+                    return TerminalViewWrapper(
+                      key: ValueKey(keyboardHeight),
+                      machineId: machineId,
+                      terminal: terminal,
+                    );
+                  },
                 ),
               ),
-            ),
-            // Permission card — slides in above InputBar when Claude Code shows
-            // a permission prompt. AnimatedSwitcher requires distinct ValueKeys
-            // on both children so it recognizes the widget type has changed.
-            AnimatedSwitcher(
-              duration: const Duration(milliseconds: 200),
-              child: permissionLine != null
-                  ? PermissionCard(
-                      key: const ValueKey('permission-card'),
-                      machineId: machineId,
-                      line: permissionLine,
-                    )
-                  : const SizedBox.shrink(key: ValueKey('no-card')),
-            ),
-            // InputBar — always rendered; its controls disable when not connected.
-            InputBar(machineId: machineId),
-          ],
+              // Permission card — slides in above InputBar when Claude Code shows
+              // a permission prompt. AnimatedSwitcher requires distinct ValueKeys
+              // on both children so it recognizes the widget type has changed.
+              AnimatedSwitcher(
+                duration: const Duration(milliseconds: 200),
+                child: permissionLine != null
+                    ? PermissionCard(
+                        key: const ValueKey('permission-card'),
+                        machineId: machineId,
+                        line: permissionLine,
+                      )
+                    : const SizedBox.shrink(key: ValueKey('no-card')),
+              ),
+              // InputBar — always rendered; its controls disable when not connected.
+              InputBar(machineId: machineId),
+            ],
+          ),
         ),
       ),
     );
