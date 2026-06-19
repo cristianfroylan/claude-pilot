@@ -53,24 +53,27 @@ Exceptions:
 
 All sizes use `Theme.of(context).textTheme.*` or explicit `TextStyle` matching the pattern established in Phase 1. No custom fonts.
 
+**Declared sizes (4 total):** 11px, 12px, 14px, 16px
+**Declared weights (2 total):** w400 (body/labels/section headers), w600 (AppBar title, bottom sheet heading)
+
 | Role | Size | Weight | Line Height | Usage |
 |------|------|--------|-------------|-------|
 | Body | 16px | w600 | 1.2 | AppBar title (machine name) — matches Phase 1 `MachineListScreen` |
-| Label | 13px | w400 | 1.3 | Command toggle button text, section labels in chip panel — matches Phase 1 `InputBar` |
-| Caption | 12px | w400 | 1.3 | ActionChip labels (control signals, text commands) — matches Phase 1 chip style |
+| Label | 12px | w400 | 1.3 | ActionChip labels (control signals, text commands), command toggle button text, section labels in chip panel |
+| Caption | 14px | w400 | 1.5 | Bottom sheet transcribed text, bottom sheet button labels |
 | Small | 11px (labelSmall) | w400 | 1.0 | AppBar subtitle (status label: "Connected", "Connecting…") — uses `Theme.of(context).textTheme.labelSmall` |
 
 Section headers inside the expanded command panel (Claude / Shell / Session):
-- Size: 11px, weight: w500, color: `colorScheme.onSurfaceVariant`
-- Uppercase optional — use sentence case to stay consistent with existing chip labels
+- Size: 11px, weight: w400, color: `colorScheme.onSurfaceVariant`
+- Sentence case — consistent with existing chip labels; `onSurfaceVariant` color provides hierarchy without a weight bump
 
 Bottom sheet (voice review):
 - Transcribed text: 14px, w400, line-height 1.5
-- "Send" FilledButton label: 14px, w500 (Flutter default for FilledButton)
-- "Cancel" TextButton label: 14px, w400
+- "Send message" FilledButton label: 14px, w400 (Flutter default renders adequately at this size)
+- "Discard" TextButton label: 14px, w400
 
 Permission card excerpt line:
-- 13px, w400, color: `colorScheme.onSurface`, single line with `overflow: TextOverflow.ellipsis`, max 80 chars before truncation
+- 12px, w400, color: `colorScheme.onSurface`, single line with `overflow: TextOverflow.ellipsis`, max 80 chars before truncation
 
 ---
 
@@ -95,6 +98,8 @@ Accent reserved for:
 
 Destructive reserved for:
 - Reject button foreground only — uses `OutlinedButton`, not filled, to visually distinguish from Approve
+
+**Primary focal point:** The terminal surface (`colorScheme.surface`, xterm TerminalView) is the primary visual anchor of the screen — it occupies the majority of vertical space and carries all Claude Code output. The permission card and InputBar are secondary surfaces; they are additive chrome that does not compete with the terminal for visual weight.
 
 ---
 
@@ -132,7 +137,7 @@ Destructive reserved for:
   [claude]  [claude .]  [exit]  [q]
 ```
 
-- Section header widget: `Padding(padding: EdgeInsets.only(top: 8, bottom: 2), child: Text('Claude', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: colorScheme.onSurfaceVariant)))`
+- Section header widget: `Padding(padding: EdgeInsets.only(top: 8, bottom: 2), child: Text('Claude', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w400, color: colorScheme.onSurfaceVariant)))`
 - All chips: `ActionChip`, `label: Text(cmdLabel, style: TextStyle(fontSize: 12))`
 - Wrap spacing: 8px horizontal, 4px run spacing — matches Phase 1 exactly
 - Panel stays open after any tap (matches Phase 1 decision — no auto-close)
@@ -155,12 +160,12 @@ Layout (top to bottom inside bottom sheet):
   - borderRadius: 8px
   - child: SelectableText(transcript, style: TextStyle(fontSize: 14, height: 1.5))
 [SizedBox height: 20]
-[Row children: [Expanded(Cancel TextButton)], [SizedBox width: 12], [Expanded(Send FilledButton)]]
+[Row children: [Expanded(Discard TextButton)], [SizedBox width: 12], [Expanded(Send message FilledButton)]]
 [SizedBox height: 16 — or MediaQuery.of(context).viewInsets.bottom if keyboard open]
 ```
 
-- "Send" label: `'Send'` — simple, no embellishment
-- "Cancel" label: `'Cancel'`
+- "Send message" label: `'Send message'` — verb + noun, unambiguous action
+- "Discard" label: `'Discard'` — specific to the action (discarding the transcription); not the generic 'Cancel'
 - "Review your message" heading communicates what to do, not just what it is
 - Bottom sheet `isScrollControlled: true` to respect keyboard insets
 
@@ -180,7 +185,7 @@ Container(
       Expanded(
         child: Text(
           truncatedPermissionLine,  // max 80 chars + ellipsis
-          style: TextStyle(fontSize: 13),
+          style: TextStyle(fontSize: 12),
           overflow: TextOverflow.ellipsis,
         ),
       ),
@@ -206,6 +211,7 @@ Container(
 - No timeout auto-dismiss (deferred decision from CONTEXT.md)
 - Lock icon (`Icons.lock_outline`) reinforces the security nature of the action without adding verbose text
 - Approve button is FilledButton (prominent, right-side); Reject is OutlinedButton (secondary, left of Approve)
+- Button labels remain `'Approve'` / `'Reject'` — the inline excerpt already provides the noun context; expanding to `'Approve action'` / `'Reject action'` adds no meaningful disambiguation and reduces label density on a narrow card
 
 ---
 
@@ -216,8 +222,8 @@ Container(
 1. User taps mic `IconButton`
 2. App calls `ACTION_RECOGNIZE_SPEECH` via `android_intent_plus` — Android system speech dialog appears (OS-managed visual, audio feedback, timeout)
 3. On result: show `ModalBottomSheet` with transcript text
-4. User reads transcript; taps "Send" → `sshSessionProvider.notifier.sendText(transcript + '\n')`, sheet dismisses
-5. User taps "Cancel" → sheet dismisses, nothing sent
+4. User reads transcript; taps "Send message" → `sshSessionProvider.notifier.sendText(transcript + '\n')`, sheet dismisses
+5. User taps "Discard" → sheet dismisses, nothing sent
 6. On `ActivityNotFoundException` or unavailability: `_voiceAvailable = false`, mic button hidden, no error shown to user
 
 ### Permission Card Flow
@@ -253,8 +259,8 @@ Container(
 |---------|------|
 | Mic button tooltip | `'Voice input'` |
 | Bottom sheet heading | `'Review your message'` |
-| Bottom sheet send CTA | `'Send'` |
-| Bottom sheet cancel | `'Cancel'` |
+| Bottom sheet send CTA | `'Send message'` |
+| Bottom sheet cancel | `'Discard'` |
 | Permission card approve | `'Approve'` |
 | Permission card reject | `'Reject'` |
 | Voice unavailable | (hidden — no error shown per VOZ-04) |
@@ -263,6 +269,7 @@ Container(
 
 Destructive actions in this phase:
 - "Reject" on permission card: sends `n\n` to PTY — this is a Claude Code permission rejection, not a Flutter destructive action. No confirmation dialog. Single tap sends immediately (same model as control signal chips). The `OutlinedButton` with error color is the visual signal.
+- "Discard" on bottom sheet: discards the voice transcription with no undo. No confirmation dialog — the bottom sheet itself is the review step.
 - No data deletion in this phase.
 
 ---
@@ -299,6 +306,7 @@ Destructive actions in this phase:
 | codebase scan (terminal_screen.dart) | 4 — Column layout slot for permission card, `AnimatedSwitcher` intent, `ref.listen` pattern, `FilledButton`/`TextButton` pattern for dialogs |
 | REQUIREMENTS.md | 3 — CMD-01..05, VOZ-01..04, APRO-01..03 requirement descriptions cross-checked |
 | User input this session | 0 — no open questions; all contract fields answered by upstream |
+| Checker revision (2026-06-19) | 4 — cancel→Discard, Send→Send message, 5 sizes→4 sizes (12px unified), 3 weights→2 weights (w500 removed) |
 
 ---
 
