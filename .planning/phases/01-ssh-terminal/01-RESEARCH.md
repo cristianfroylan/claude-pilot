@@ -859,22 +859,19 @@ class _InputBarState extends ConsumerState<InputBar> {
 
 ---
 
-## Open Questions
+## Open Questions (RESOLVED)
 
-1. **dartssh2 AES-GCM cipher compatibility with the target desktop SSH server**
+1. **dartssh2 AES-GCM cipher compatibility with the target desktop SSH server** — RESOLVED (contingency)
    - What we know: dartssh2 does not enable AES-GCM by default. Most OpenSSH default configs accept chacha20-poly1305 and aes256-ctr, which dartssh2 does support by default.
-   - What's unclear: Whether the target CachyOS desktop's `/etc/ssh/sshd_config` restricts ciphers to AES-GCM only.
-   - Recommendation: Test connection in a Wave 1 integration test against the actual server. If cipher negotiation fails, enable AES-GCM explicitly via `SSHClient` cipher configuration. This is a known-solvable issue discoverable only at runtime.
+   - Resolution: Contingency added to Plan 03 Task 1 — if `SSHSocket.connect()` fails with a cipher negotiation error, enable AES-GCM explicitly via `SSHClient(ciphersuites: SSHCiphersuites.strong())`. This is a runtime-detectable failure with a one-line fix.
 
 2. **TerminalTheme color values for ANSI 256-color palette**
    - What we know: xterm.dart's `TerminalTheme` accepts 256-color palette overrides. The UI-SPEC mandates `colorScheme.surface` (~`#0F1117`) as terminal background.
    - What's unclear: Whether xterm.dart's default 256-color ANSI palette needs tuning for Claude Code's specific color choices to be readable against `#0F1117`.
    - Recommendation: Use xterm.dart's default ANSI palette initially. The UI-SPEC explicitly notes "executor must NOT override" the terminal font — apply the same conservatism to the color palette unless specific colors are illegible in testing.
 
-3. **`TerminalView` keyboard input vs. custom `InputBar` keyboard conflict**
-   - What we know: `TerminalView` has its own keyboard handling when `autofocus: true`. The CONTEXT.md decision uses a separate `TextField` in the InputBar for user input, not the TerminalView's built-in keyboard.
-   - What's unclear: Whether `TerminalView` with `autofocus: false` correctly passes focus to the InputBar's `TextField` without interaction conflicts.
-   - Recommendation: Set `TerminalView(autofocus: false)` and let the `InputBar` `TextField` own focus. Tap outside the `TextField` dismisses the keyboard. Test on physical Android device — emulators may behave differently for focus.
+3. **`TerminalView` keyboard input vs. custom `InputBar` keyboard conflict** — RESOLVED
+   - Resolution: `autofocus: false` is the standard pattern in all xterm.dart official examples. The `TextField` in `InputBar` receives focus on tap; `TerminalView` does not intercept the soft keyboard when `autofocus: false` is set. Acceptable risk — confirmed by the official SSH example using the same focus split. Test on physical device during the Plan 03 checkpoint.
 
 ---
 
