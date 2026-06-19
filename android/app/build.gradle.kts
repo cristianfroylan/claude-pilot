@@ -7,7 +7,7 @@ plugins {
 
 android {
     namespace = "com.example.claude_pilot"
-    compileSdk = 34
+    compileSdk = 36   // flutter_secure_storage 10.3.1 + shared_preferences_android require SDK 36
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
@@ -24,7 +24,7 @@ android {
         applicationId = "com.example.claude_pilot"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
-        minSdk = 23           // REQUIRED: flutter_secure_storage v10+ enforces minSdk 23
+        minSdk = flutter.minSdkVersion           // REQUIRED: flutter_secure_storage v10+ enforces minSdk 23
         targetSdk = 34
         versionCode = flutter.versionCode
         versionName = flutter.versionName
