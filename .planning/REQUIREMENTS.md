@@ -121,9 +121,9 @@
 
 **Coverage:**
 - v1 requirements: 28 total
-- Mapped to phases: 28
+- Mapped to phases: 28 (Phase 1: 17, Phase 2: 11, Phase 3: 0 — cross-cutting polish)
 - Unmapped: 0 ✓
 
 ---
 *Requirements defined: 2026-06-19*
-*Last updated: 2026-06-19 after initialization from SPEC.md + research*
+*Last updated: 2026-06-19 after roadmap creation (3 phases)*
