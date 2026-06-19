@@ -82,6 +82,7 @@ class SshSession extends _$SshSession {
       await SSHSocket.connect(host, port),
       username: username,
       onPasswordRequest: () => password ?? '',
+      keepAliveInterval: const Duration(seconds: 30),
     );
 
     // CRITICAL — guard transport close (T-03-03 / SSH-03):
