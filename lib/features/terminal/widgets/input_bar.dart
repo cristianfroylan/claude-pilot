@@ -3,18 +3,30 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../providers/ssh_session_provider.dart';
 
-// Control signal byte constants — raw bytes sent directly to SSH stdin.
-const _ctrlC = [0x03]; // SIGINT — interrupt running process
-const _ctrlD = [0x04]; // EOF — close stdin / exit shell
-const _esc = [0x1b]; // Escape key
+const _arrowLeft  = [0x1b, 0x5b, 0x44];
+const _arrowUp    = [0x1b, 0x5b, 0x41];
+const _arrowDown  = [0x1b, 0x5b, 0x42];
+const _arrowRight = [0x1b, 0x5b, 0x43];
 
-/// InputBar widget — displays control chips (Ctrl+C/D/ESC) and a text input row.
+const _commands = [
+  _Cmd('Interrupt  [Ctrl+C]',  [0x03]),
+  _Cmd('Exit / EOF  [Ctrl+D]', [0x04]),
+  _Cmd('Escape  [ESC]',        [0x1b]),
+  _Cmd('Tab  [Tab]',           [0x09]),
+];
+
+class _Cmd {
+  final String label;
+  final List<int> bytes;
+  const _Cmd(this.label, this.bytes);
+}
+
+/// InputBar — expandable Command panel + arrow keys + mic placeholder.
 ///
-/// Uses ConsumerStatefulWidget to hold the TextEditingController locally while
-/// accessing the SSH session provider via ref.
+/// Tapping "Command" expands a row of chips inline (no route push, no focus
+/// loss) so the soft keyboard stays open while selecting a control signal.
 class InputBar extends ConsumerStatefulWidget {
   final String machineId;
-
   const InputBar({super.key, required this.machineId});
 
   @override
@@ -22,91 +34,96 @@ class InputBar extends ConsumerStatefulWidget {
 }
 
 class _InputBarState extends ConsumerState<InputBar> {
-  final _controller = TextEditingController();
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  void _send() {
-    final text = _controller.text.trim();
-    if (text.isEmpty) return;
-    ref
-        .read(sshSessionProvider(widget.machineId).notifier)
-        .sendText('$text\n');
-    _controller.clear();
-  }
+  bool _commandsVisible = false;
 
   @override
   Widget build(BuildContext context) {
-    final sessionAsync = ref.watch(sshSessionProvider(widget.machineId));
-    final isConnected = sessionAsync.hasValue;
+    final isConnected =
+        ref.watch(sshSessionProvider(widget.machineId)).hasValue;
     final colorScheme = Theme.of(context).colorScheme;
 
-    return Container(
-      color: colorScheme.surfaceContainerHigh,
-      padding: const EdgeInsets.all(8),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // Row 1: Control signal chips (Ctrl+C, Ctrl+D, ESC)
-          Row(
-            children: [
-              for (final (label, bytes) in [
-                ('Ctrl+C', _ctrlC),
-                ('Ctrl+D', _ctrlD),
-                ('ESC', _esc),
-              ])
-                Padding(
-                  padding: const EdgeInsets.only(right: 8),
-                  child: ActionChip(
-                    label: Text(
-                      label,
-                      style: const TextStyle(fontSize: 12),
-                    ),
-                    onPressed: isConnected
-                        ? () => ref
-                              .read(
-                                sshSessionProvider(widget.machineId).notifier,
-                              )
-                              .sendBytes(bytes)
-                        : null,
-                  ),
-                ),
-            ],
+    void send(List<int> bytes) {
+      if (!isConnected) return;
+      ref
+          .read(sshSessionProvider(widget.machineId).notifier)
+          .sendBytes(bytes);
+    }
+
+    void sendAndClose(List<int> bytes) => send(bytes);
+
+    Widget arrowBtn(IconData icon, List<int> bytes) => SizedBox(
+          width: 36,
+          height: 36,
+          child: IconButton(
+            padding: EdgeInsets.zero,
+            icon: Icon(icon, size: 18),
+            onPressed: isConnected ? () => send(bytes) : null,
           ),
-          const SizedBox(height: 8),
-          // Row 2: Text input field + Send button
-          Row(
-            children: [
-              Expanded(
-                child: TextField(
-                  controller: _controller,
-                  textInputAction: TextInputAction.send,
-                  onSubmitted: (_) => isConnected ? _send() : null,
-                  enabled: isConnected,
-                  decoration: const InputDecoration(
-                    hintText: 'Type a prompt…',
-                    isDense: true,
-                    border: OutlineInputBorder(),
+        );
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        // ── Expandable command chips (shown above the main bar) ──────
+        if (_commandsVisible)
+          Container(
+            color: colorScheme.surfaceContainerHighest,
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            child: Wrap(
+              spacing: 8,
+              runSpacing: 4,
+              children: [
+                for (final cmd in _commands)
+                  ActionChip(
+                    label: Text(cmd.label,
+                        style: const TextStyle(fontSize: 12)),
+                    onPressed:
+                        isConnected ? () => sendAndClose(cmd.bytes) : null,
                   ),
+              ],
+            ),
+          ),
+
+        // ── Main bar ─────────────────────────────────────────────────
+        Container(
+          color: colorScheme.surfaceContainerHigh,
+          padding:
+              const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          child: Row(
+            children: [
+              // Command toggle
+              TextButton.icon(
+                onPressed: isConnected
+                    ? () =>
+                        setState(() => _commandsVisible = !_commandsVisible)
+                    : null,
+                icon: Icon(
+                  _commandsVisible
+                      ? Icons.expand_more
+                      : Icons.expand_less,
+                  size: 16,
+                ),
+                label: const Text('Command',
+                    style: TextStyle(fontSize: 13)),
+                style: TextButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 8, vertical: 4),
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                 ),
               ),
-              const SizedBox(width: 8),
-              Semantics(
-                label: 'Send',
-                child: IconButton(
-                  icon: const Icon(Icons.send),
-                  color: colorScheme.primary,
-                  onPressed: isConnected ? _send : null,
-                ),
-              ),
+
+              const Spacer(),
+
+              // Arrow keys (right-aligned)
+              arrowBtn(Icons.arrow_back,     _arrowLeft),
+              arrowBtn(Icons.arrow_upward,   _arrowUp),
+              arrowBtn(Icons.arrow_downward, _arrowDown),
+              arrowBtn(Icons.arrow_forward,  _arrowRight),
             ],
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }

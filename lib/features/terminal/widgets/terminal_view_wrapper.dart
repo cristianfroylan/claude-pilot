@@ -43,7 +43,7 @@ class TerminalViewWrapper extends ConsumerWidget {
           child: TerminalView(
             terminal,
             theme: AppTheme.terminalTheme,
-            autofocus: false,
+            autofocus: true,
           ),
         );
       },

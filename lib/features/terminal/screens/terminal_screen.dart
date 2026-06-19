@@ -29,15 +29,43 @@ class TerminalScreen extends ConsumerWidget {
     );
     final machineName = (machine?.name as String?) ?? 'Terminal';
 
-    // Error SnackBar: show when SSH connection fails or drops (T-03-03).
+    // Error dialog: fires once on transition into error state (T-03-03).
+    // — Connection drop while active: brief message, no config link needed.
+    // — Failed to connect after 3 retries: offer to open the edit screen.
     ref.listen(sshSessionProvider(machineId), (prev, next) {
       if (next.hasError && !(prev?.hasError ?? false)) {
         final wasConnected = prev?.hasValue ?? false;
-        final message = wasConnected
-            ? 'Connection to $machineName lost.'
-            : 'Could not connect to $machineName. Check host, port, and credentials.';
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(message)),
+        if (wasConnected) {
+          // Mid-session drop — light SnackBar, no action required.
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Connection to $machineName lost.')),
+          );
+          return;
+        }
+        // Failed to connect after all retries — offer config review.
+        showDialog<void>(
+          context: context,
+          barrierDismissible: false,
+          builder: (dialogContext) => AlertDialog(
+            title: const Text('Could not connect'),
+            content: Text(
+              'We tried ${SshSession.maxAttempts} times and could not reach '
+              '$machineName. Do you want to review the machine settings?',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(dialogContext).pop(),
+                child: const Text('Not now'),
+              ),
+              FilledButton(
+                onPressed: () {
+                  Navigator.of(dialogContext).pop();
+                  context.go('/machines/$machineId/edit');
+                },
+                child: const Text('Review settings'),
+              ),
+            ],
+          ),
         );
       }
     });

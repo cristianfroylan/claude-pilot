@@ -1,4 +1,5 @@
 import 'dart:convert';
+
 import 'dart:typed_data';
 
 import 'package:dartssh2/dartssh2.dart';
@@ -30,6 +31,8 @@ class SshSession extends _$SshSession {
 
   bool _disposed = false;
 
+  static const maxAttempts = 3;
+
   @override
   Future<Terminal> build(String machineId) async {
     // Register cleanup FIRST — before any awaits — so dispose always fires.
@@ -39,60 +42,80 @@ class SshSession extends _$SshSession {
       _client?.close();
     });
 
-    // Fetch machine metadata from the machine provider.
     final machine = ref.read(machineProvider.notifier).get(machineId);
-    if (machine == null) {
-      throw StateError('Machine $machineId not found');
-    }
+    if (machine == null) throw StateError('Machine $machineId not found');
 
-    // Fetch SSH password from flutter_secure_storage.
     final password =
         await ref.read(machineProvider.notifier).getPassword(machineId);
 
+    Object? lastError;
+    for (var attempt = 0; attempt < maxAttempts; attempt++) {
+      if (_disposed) break;
+      try {
+        return await _connectOnce(
+            machine.host, machine.port, machine.username, password);
+      } catch (e) {
+        // ignore: avoid_print
+        print('[SshSession] attempt ${attempt + 1}/$maxAttempts failed: $e');
+        lastError = e;
+        _client?.close();
+        _client = null;
+        _sshSession = null;
+        if (attempt < maxAttempts - 1 && !_disposed) {
+          await Future.delayed(const Duration(seconds: 1));
+        }
+      }
+    }
+
+    throw lastError ?? StateError('Connection failed after $maxAttempts attempts');
+  }
+
+  Future<Terminal> _connectOnce(
+      String host, int port, String username, String? password) async {
     // Establish SSH transport connection.
     _client = SSHClient(
-      await SSHSocket.connect(machine.host, machine.port),
-      username: machine.username,
+      await SSHSocket.connect(host, port),
+      username: username,
       onPasswordRequest: () => password ?? '',
     );
 
     // CRITICAL — guard transport close (T-03-03 / SSH-03):
     // Without this, a network drop produces an unhandled SSHStateError crash.
-    // With it, the error is routed to state = AsyncError, showing a SnackBar.
+    // With it, the error is routed to state = AsyncError, triggering the dialog.
     _client!.done.catchError((Object e) {
       if (!_disposed) state = AsyncError(e, StackTrace.current);
     });
 
-    // Create xterm Terminal model — ANSI rendering state machine.
     final terminal = Terminal(maxLines: 2000);
 
-    // Open interactive PTY shell on the SSH connection.
     _sshSession = await _client!.shell(
       pty: const SSHPtyConfig(
         type: 'xterm-256color',
         width: 80,
         height: 24,
       ),
-      environment: {
-        'TERM': 'xterm-256color',
-        'LANG': 'en_US.UTF-8',
-      },
     );
 
-    // Wire stdout → terminal (ANSI sequences render colors, cursor movement).
+    // xterm 4.0.0 bug: EscapeParser._csiHandleSgr throws RangeError on certain
+    // SGR sequences (e.g. 256-color codes where params.length < expected).
+    // Catch and discard to keep the stream alive — the byte is lost but the
+    // session continues rendering correctly for all other sequences.
+    void safeWrite(String data) {
+      try {
+        terminal.write(data);
+      } catch (_) {}
+    }
+
     _sshSession!.stdout
         .cast<List<int>>()
         .transform(const Utf8Decoder(allowMalformed: true))
-        .listen(terminal.write);
+        .listen(safeWrite);
 
-    // Wire stderr → terminal (same treatment — e.g., Claude Code stderr output).
     _sshSession!.stderr
         .cast<List<int>>()
         .transform(const Utf8Decoder(allowMalformed: true))
-        .listen(terminal.write);
+        .listen(safeWrite);
 
-    // Wire terminal keyboard output → SSH stdin.
-    // Called when the user types directly in TerminalView (not InputBar).
     terminal.onOutput = (data) => _sshSession?.write(utf8.encode(data));
 
     return terminal;
