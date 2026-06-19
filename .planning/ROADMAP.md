@@ -28,7 +28,11 @@ Decimal phases appear between their surrounding integers in numeric order.
   2. User can tap a machine, watch the connection status change to "connected," and see live Claude Code output with full ANSI colors and cursor sequences rendered correctly
   3. User can type a prompt in the input bar, send it, and watch Claude Code respond in real time in the terminal
   4. User can interrupt a running process with Ctrl+C, close stdin with Ctrl+D, and send ESC — all without the app crashing when the SSH connection drops unexpectedly
-**Plans**: TBD
+**Plans:** 3 plans
+Plans:
+- [ ] 01-01-PLAN.md — Walking skeleton: Flutter project, packages, Android hardening, dark theme, routing
+- [ ] 01-02-PLAN.md — Machine manager: add/edit/delete machines with encrypted credential storage
+- [ ] 01-03-PLAN.md — SSH terminal: live ANSI session, InputBar, control signals, crash-safe disconnect
 **UI hint**: yes
 
 ### Phase 2: Claude Code Remote
@@ -63,6 +67,6 @@ Phases execute in numeric order: 1 → 2 → 3
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. SSH Terminal | 0/TBD | Not started | - |
+| 1. SSH Terminal | 0/3 | Not started | - |
 | 2. Claude Code Remote | 0/TBD | Not started | - |
 | 3. Polish and Stability | 0/TBD | Not started | - |
