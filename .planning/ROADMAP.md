@@ -61,14 +61,14 @@ Plans:
   3. When Claude Code displays a permission prompt, a card appears automatically with Approve and Reject buttons that send the correct response to the terminal
   4. If voice recognition is unavailable on the device, the microphone button is hidden with no visible error
 
-**Plans:** 1/3 plans executed
+**Plans:** 2/3 plans executed
 
 Plans:
 
 **Wave 1**
 
 - [x] 02-01-PLAN.md — Quick commands panel: sectioned Claude/Shell/Session text chips (one-tap send)
-- [ ] 02-02-PLAN.md — Permission approval card: stdout interception, detector provider, AnimatedSwitcher card
+- [x] 02-02-PLAN.md — Permission approval card: stdout interception, detector provider, AnimatedSwitcher card
 
 **Wave 2** *(blocked on Wave 1 — shares input_bar.dart with 02-01)*
 
@@ -99,5 +99,5 @@ Phases execute in numeric order: 1 → 2 → 3
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. SSH Terminal | 3/3 | Complete   | 2026-06-19 |
-| 2. Claude Code Remote | 1/3 | In Progress|  |
+| 2. Claude Code Remote | 2/3 | In Progress|  |
 | 3. Polish and Stability | 0/TBD | Not started | - |

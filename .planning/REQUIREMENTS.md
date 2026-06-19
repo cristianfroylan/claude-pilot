@@ -51,9 +51,9 @@
 
 ### Aprobación de Acciones
 
-- [ ] **APRO-01**: Cuando Claude Code muestra un prompt de permiso, aparece una card con [Aprobar] y [Rechazar]
-- [ ] **APRO-02**: Tap en Aprobar envía "y" + Enter a la terminal
-- [ ] **APRO-03**: Tap en Rechazar envía "n" + Enter a la terminal
+- [x] **APRO-01**: Cuando Claude Code muestra un prompt de permiso, aparece una card con [Aprobar] y [Rechazar]
+- [x] **APRO-02**: Tap en Aprobar envía "y" + Enter a la terminal
+- [x] **APRO-03**: Tap en Rechazar envía "n" + Enter a la terminal
 
 ## v2 Requirements
 
@@ -115,9 +115,9 @@
 | VOZ-02 | Phase 2 | Pending |
 | VOZ-03 | Phase 2 | Pending |
 | VOZ-04 | Phase 2 | Pending |
-| APRO-01 | Phase 2 | Pending |
-| APRO-02 | Phase 2 | Pending |
-| APRO-03 | Phase 2 | Pending |
+| APRO-01 | Phase 2 | Complete |
+| APRO-02 | Phase 2 | Complete |
+| APRO-03 | Phase 2 | Complete |
 
 **Coverage:**
 - v1 requirements: 28 total
