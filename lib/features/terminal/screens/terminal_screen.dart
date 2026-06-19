@@ -3,8 +3,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../machines/providers/machines_provider.dart';
+import '../providers/permission_detector_provider.dart';
 import '../providers/ssh_session_provider.dart';
 import '../widgets/input_bar.dart';
+import '../widgets/permission_card.dart';
 import '../widgets/terminal_view_wrapper.dart';
 
 /// TerminalScreen — SSH terminal view for a single machine.
@@ -19,6 +21,11 @@ class TerminalScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final sessionAsync = ref.watch(sshSessionProvider(machineId));
+
+    // Watch the permission detector — emits the matched line or null.
+    // Use .asData?.value — .valueOrNull is not available in the installed Riverpod version.
+    final permissionLine =
+        ref.watch(permissionDetectorProvider(machineId)).asData?.value;
 
     // Retrieve machine metadata for display name.
     // Uses .value (nullable) — valueOrNull not available in installed Riverpod version.
@@ -136,6 +143,19 @@ class TerminalScreen extends ConsumerWidget {
                   terminal: terminal,
                 ),
               ),
+            ),
+            // Permission card — slides in above InputBar when Claude Code shows
+            // a permission prompt. AnimatedSwitcher requires distinct ValueKeys
+            // on both children so it recognizes the widget type has changed.
+            AnimatedSwitcher(
+              duration: const Duration(milliseconds: 200),
+              child: permissionLine != null
+                  ? PermissionCard(
+                      key: const ValueKey('permission-card'),
+                      machineId: machineId,
+                      line: permissionLine,
+                    )
+                  : const SizedBox.shrink(key: ValueKey('no-card')),
             ),
             // InputBar — always rendered; its controls disable when not connected.
             InputBar(machineId: machineId),
