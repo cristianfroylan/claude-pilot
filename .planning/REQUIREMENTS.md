@@ -36,11 +36,11 @@
 
 ### Comandos Rápidos
 
-- [ ] **CMD-01**: Panel colapsable con slash commands de Claude Code (/clear, /compact, /gsd, /help, /cost)
-- [ ] **CMD-02**: Panel incluye comandos de navegación (cd ~, cd .., ls, pwd)
-- [ ] **CMD-03**: Panel incluye señales de salida (\q, q)
-- [ ] **CMD-04**: Panel incluye comandos de sesión (claude, claude ., exit)
-- [ ] **CMD-05**: Usuario puede navegar el historial de comandos (↑ y ↓ del shell)
+- [x] **CMD-01**: Panel colapsable con slash commands de Claude Code (/clear, /compact, /gsd, /help, /cost)
+- [x] **CMD-02**: Panel incluye comandos de navegación (cd ~, cd .., ls, pwd)
+- [x] **CMD-03**: Panel incluye señales de salida (\q, q)
+- [x] **CMD-04**: Panel incluye comandos de sesión (claude, claude ., exit)
+- [x] **CMD-05**: Usuario puede navegar el historial de comandos (↑ y ↓ del shell)
 
 ### Dictado de Voz
 
@@ -106,11 +106,11 @@
 | INP-02 | Phase 1 | Pending |
 | INP-03 | Phase 1 | Pending |
 | INP-04 | Phase 1 | Pending |
-| CMD-01 | Phase 2 | Pending |
-| CMD-02 | Phase 2 | Pending |
-| CMD-03 | Phase 2 | Pending |
-| CMD-04 | Phase 2 | Pending |
-| CMD-05 | Phase 2 | Pending |
+| CMD-01 | Phase 2 | Complete |
+| CMD-02 | Phase 2 | Complete |
+| CMD-03 | Phase 2 | Complete |
+| CMD-04 | Phase 2 | Complete |
+| CMD-05 | Phase 2 | Complete |
 | VOZ-01 | Phase 2 | Pending |
 | VOZ-02 | Phase 2 | Pending |
 | VOZ-03 | Phase 2 | Pending |
