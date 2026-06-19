@@ -57,11 +57,12 @@ All type is Flutter Material 3 TextTheme. Declare sizes in sp (Flutter scale-ind
 | Role | Size | Weight | Line Height | Usage |
 |------|------|--------|-------------|-------|
 | Body (UI) | 14 sp | 400 (regular) | 1.43 (Material default) | Machine list items, form field values, status labels |
-| Label | 12 sp | 500 (medium) | 1.33 | Chip labels (Ctrl+C, Ctrl+D, ESC), AppBar subtitle |
+| Label | 12 sp | 400 (regular) | 1.33 | Chip labels (Ctrl+C, Ctrl+D, ESC), AppBar subtitle |
 | Heading | 16 sp | 600 (semibold) | 1.5 | AppBar title (machine name), section headers in add/edit form |
 | Terminal | xterm.dart default (~14 sp equivalent) | monospace regular | 1.0 (terminal line height) | All terminal output — executor must NOT override |
 
 Typography rules:
+- Two font weights only: 400 (regular) and 600 (semibold). No medium (500) weight anywhere in Phase 1.
 - Maximum 3 UI type sizes in Phase 1: 12 sp, 14 sp, 16 sp. Terminal type is separate and xterm-controlled.
 - Do not add a Display size — no marketing/hero text in Phase 1.
 - `textScaleFactor` clamped to max 1.3 on the terminal screen to prevent layout overflow. Apply via `MediaQuery` wrapper on `TerminalScreen`.
@@ -101,6 +102,8 @@ Source: CONTEXT.md `## Implementation Decisions > Machine Manager UI` (colored d
 
 ### Screen 1: Machine List (`/machines`)
 
+Primary visual anchor: FAB
+
 Layout: `Scaffold` with `AppBar` + `ListView` + `FloatingActionButton`.
 
 | Element | Spec |
@@ -130,15 +133,17 @@ Layout: `Scaffold` with `AppBar` + `SingleChildScrollView` containing a `Column`
 
 ### Screen 3: Terminal (`/terminal/:machineId`)
 
+Primary visual anchor: TerminalView
+
 Layout: `Scaffold` — `resizeToAvoidBottomInset: true` — `Column` with `Expanded(TerminalView)` + `InputBar`.
 
 | Element | Spec |
 |---------|------|
-| AppBar | Minimal — title = machine name (16 sp semibold) + subtitle = connection status label (12 sp); trailing `Icons.close` for disconnect |
+| AppBar | Minimal — title = machine name (16 sp semibold) + subtitle = connection status label (12 sp regular); trailing `Icons.close` for disconnect |
 | AppBar background | `colorScheme.surfaceContainerHigh` |
 | TerminalView | `Expanded`, fills remaining height edge-to-edge, background matches `colorScheme.surface` (xterm theme set accordingly) |
 | InputBar | Pinned above keyboard — `Column`: top row = control chips (`Ctrl+C`, `Ctrl+D`, `ESC`), bottom row = `TextField` + send `IconButton` |
-| Control chips | `ActionChip` or `InputChip` — label 12 sp medium, min height 44 dp, `colorScheme.surfaceContainerHigh` background |
+| Control chips | `ActionChip` or `InputChip` — label 12 sp regular, min height 44 dp, `colorScheme.surfaceContainerHigh` background |
 | TextField | Single-line, `TextInputAction.send`, hint "Type a prompt…", 14 sp regular |
 | Send button | `IconButton` with `Icons.send`, `colorScheme.primary` color, min size 44 dp |
 | InputBar background | `colorScheme.surfaceContainerHigh` |
@@ -164,7 +169,7 @@ The terminal AppBar subtitle + status dot reflect connection state at all times.
 A confirmation dialog appears before deleting a machine (my discretion per CONTEXT.md).
 
 - Trigger: Swipe-to-delete on list OR delete `IconButton` in edit screen
-- Dialog: `AlertDialog` — title "Delete machine?", content "This will remove [machine name] and its saved credentials. This cannot be undone.", confirm button "Delete" (`colorScheme.error`), cancel button "Cancel"
+- Dialog: `AlertDialog` — title "Delete machine?", content "This will remove [machine name] and its saved credentials. This cannot be undone.", confirm button "Delete" (`colorScheme.error`), cancel button "Keep Machine"
 - No confirmation on swipe undo (Dismissible provides undo snackbar instead)
 
 ### PTY Resize (SSH-04)
@@ -197,7 +202,7 @@ A confirmation dialog appears before deleting a machine (my discretion per CONTE
 | Delete confirmation title | "Delete machine?" |
 | Delete confirmation body | "This will remove [machine name] and its saved credentials. This cannot be undone." |
 | Delete confirm button | "Delete" |
-| Delete cancel button | "Cancel" |
+| Delete cancel button | "Keep Machine" |
 | Form field: Name | Label "Name", hint "My Laptop" |
 | Form field: Host | Label "Host", hint "192.168.1.100" |
 | Form field: Port | Label "Port", hint "22" |
