@@ -125,7 +125,7 @@ Plans:
 
 **Wave 2** *(blocked on Wave 1 — consumes the sealed state type)*
 
-- [ ] 04-02-PLAN.md — Reconnection state machine in SshSession (retry loops, backoff, countdown, cancel/reconnect, drop detection) + update all consumers
+- [x] 04-02-PLAN.md — Reconnection state machine in SshSession (retry loops, backoff, countdown, cancel/reconnect, drop detection) + update all consumers
 
 **Wave 3** *(blocked on Wave 2 — shares terminal_screen.dart, needs cancel()/reconnect())*
 
@@ -188,7 +188,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7
 | 1. SSH Terminal | 3/3 | Complete | 2026-06-19 |
 | 2. Claude Code Remote | 3/3 | Complete | 2026-06-19 |
 | 3. Polish and Stability | 1/1 | Complete | 2026-06-19 |
-| 4. Reconexión Robusta | 1/3 | In Progress|  |
+| 4. Reconexión Robusta | 2/3 | In Progress|  |
 | 5. Autenticación Biométrica | 0/? | Not started | - |
 | 6. Session Start Picker | 0/? | Not started | - |
 | 7. Sesiones Múltiples con Tabs | 0/? | Not started | - |

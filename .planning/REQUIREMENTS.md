@@ -61,7 +61,7 @@
 
 - [x] **RECON-01**: Al fallar la conexión inicial, la app reintenta automáticamente hasta 5 veces con backoff exponencial (1s→2s→4s→8s→16s) mostrando número de intento y tiempo de espera
 - [x] **RECON-02**: Al caerse una sesión activa (mid-session), la app reintenta automáticamente hasta 3 veces con un banner inline en el terminal
-- [ ] **RECON-03**: El usuario puede cancelar los reintentos en curso con un botón visible
+- [x] **RECON-03**: El usuario puede cancelar los reintentos en curso con un botón visible
 - [x] **RECON-04**: Tras agotar los reintentos automáticos, el usuario puede forzar un reintento manual
 - [x] **RECON-05**: El historial del terminal (scrollback) se preserva durante y después de la reconexión — no se limpia el buffer de xterm
 
@@ -125,7 +125,7 @@
 | (cross-cutting polish) | Phase 3 | Complete |
 | RECON-01 | Phase 4 | Complete |
 | RECON-02 | Phase 4 | Complete |
-| RECON-03 | Phase 4 | Pending |
+| RECON-03 | Phase 4 | Complete |
 | RECON-04 | Phase 4 | Complete |
 | RECON-05 | Phase 4 | Complete |
 | BIO-01 | Phase 5 | Pending |

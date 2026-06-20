@@ -4,13 +4,13 @@ milestone: v2.0
 milestone_name: Power User Features
 status: executing
 stopped_at: Roadmap v2.0 created — Phases 4–7 defined
-last_updated: "2026-06-20T21:32:19.616Z"
+last_updated: "2026-06-20T21:40:09.357Z"
 last_activity: 2026-06-20 -- Phase 04 planning complete
 progress:
   total_phases: 7
   completed_phases: 3
   total_plans: 10
-  completed_plans: 8
+  completed_plans: 9
   percent: 43
 ---
 
@@ -30,7 +30,7 @@ Plan: —
 Status: Ready to execute
 Last activity: 2026-06-20 -- Phase 04 planning complete
 
-Progress: [████████░░] 80%
+Progress: [█████████░] 90%
 
 ## Performance Metrics
 
@@ -43,6 +43,7 @@ Progress: [████████░░] 80%
 | Phase 02-claude-code-remote P03 | 8m | 3 tasks | 4 files |
 | Phase 03-polish-and-stability P01 | 138s | 3 tasks | 4 files |
 | Phase 04-reconexi-n-robusta P01 | 5m | 1 tasks | 1 files |
+| Phase 04-reconexi-n-robusta P02 | 99s | 2 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -70,6 +71,8 @@ v2.0 architecture decisions (from research):
 - [v2]: Tabs use TabController + IndexedStack (native Flutter), not StatefulShellRoute — SSH sessions are runtime-created, static branch counts incompatible
 - [v2]: Folder listing uses dartssh2 SFTP client.sftp().listdir(), not shell ls parsing — structured SftpName objects, no parsing fragility
 - [v2]: minSdk raised from 23 to 24 for local_auth biometric requirement
+- [Phase ?]: reconnect() is a single manual attempt per RECON-04 spec — no loop, one try then SshConnected or SshFailed
+- [Phase ?]: _installDoneWatcher() extracted to share generation-guard logic across build/reconnect/mid-session call sites
 
 ### Pending Todos
 
@@ -94,7 +97,7 @@ None at roadmap creation.
 
 ## Session Continuity
 
-Last session: 2026-06-20T21:32:19.608Z
+Last session: 2026-06-20T21:39:57.541Z
 Stopped at: Roadmap v2.0 created — Phases 4–7 defined
 Resume file: None
 Next action: /gsd:plan-phase 4
