@@ -178,7 +178,7 @@ Plans:
 
 **Wave 1**
 
-- [ ] 06-01-PLAN.md — Machine model folderPaths extension + Component A folder editor in AddEditMachineScreen
+- [x] 06-01-PLAN.md — Machine model folderPaths extension + Component A folder editor in AddEditMachineScreen
 
 **Wave 2** *(blocked on Wave 1 — consumes machine.folderPaths)*
 
@@ -212,5 +212,5 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7
 | 3. Polish and Stability | 1/1 | Complete | 2026-06-19 |
 | 4. Reconexión Robusta | 3/3 | Complete   | 2026-06-20 |
 | 5. Autenticación Biométrica | 1/3 | In Progress|  |
-| 6. Session Start Picker | 0/? | Not started | - |
+| 6. Session Start Picker | 1/2 | In Progress|  |
 | 7. Sesiones Múltiples con Tabs | 0/? | Not started | - |

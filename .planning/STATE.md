@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: — Power User Features
-status: completed
+status: executing
 stopped_at: Roadmap v2.0 created — Phases 4–7 defined
-last_updated: "2026-06-20T22:42:30.458Z"
-last_activity: 2026-06-20 -- Phase 5 marked complete
+last_updated: "2026-06-20T23:03:10.403Z"
+last_activity: 2026-06-20 -- Phase 06 execution started
 progress:
   total_phases: 7
   completed_phases: 5
-  total_plans: 13
+  total_plans: 15
   completed_plans: 13
   percent: 71
 ---
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-20)
 
 **Core value:** Enviar un prompt a Claude Code desde el teléfono y ver la respuesta llegar — sin abrir la laptop.
-**Current focus:** Milestone v2.0 — Power User Features
+**Current focus:** Phase 06 — session-start-picker
 
 ## Current Position
 
-Phase: 5 — COMPLETE
-Plan: —
-Status: Phase 5 complete
-Last activity: 2026-06-20 -- Phase 5 marked complete
+Phase: 06 (session-start-picker) — EXECUTING
+Plan: 1 of 2
+Status: Executing Phase 06
+Last activity: 2026-06-20 -- Phase 06 execution started
 
 Progress: [█████████░] 85%
 
