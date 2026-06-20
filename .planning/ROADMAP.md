@@ -172,7 +172,17 @@ Plans:
   3. The user can dismiss the picker with a "Start blank" option to enter the session without any `cd` command
   4. If a machine has no configured folders, the session starts in blank mode directly — the picker sheet never appears
 
-**Plans**: TBD
+**Plans**: 2 plans
+
+Plans:
+
+**Wave 1**
+
+- [ ] 06-01-PLAN.md — Machine model folderPaths extension + Component A folder editor in AddEditMachineScreen
+
+**Wave 2** *(blocked on Wave 1 — consumes machine.folderPaths)*
+
+- [ ] 06-02-PLAN.md — SessionPickerSheet widget + TerminalScreen conversion + picker trigger
 **UI hint**: yes
 
 ### Phase 7: Sesiones Múltiples con Tabs
