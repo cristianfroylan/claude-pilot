@@ -3,6 +3,8 @@
     <uses-permission android:name="android.permission.INTERNET"/>
     <!-- Required for voice dictation (speech_to_text) -->
     <uses-permission android:name="android.permission.RECORD_AUDIO"/>
+    <!-- Required for biometric authentication (local_auth) -->
+    <uses-permission android:name="android.permission.USE_BIOMETRIC"/>
 
     <application
         android:label="claude_pilot"
