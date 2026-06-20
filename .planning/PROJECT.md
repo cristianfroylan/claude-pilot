@@ -34,12 +34,12 @@ Enviar un prompt a Claude Code desde el teléfono y ver la respuesta llegar — 
 ### Active
 
 - [ ] Usuario puede tener múltiples sesiones SSH abiertas simultáneamente y navegar entre ellas con tabs
-- [ ] Al iniciar una nueva sesión, el usuario puede elegir empezar en blanco o cargar un proyecto
-- [ ] Usuario puede configurar una lista de carpetas de trabajo por máquina
-- [ ] La app requiere autenticación biométrica al lanzarse (Face ID / huella / PIN)
-- [ ] La app requiere autenticación biométrica al editar credenciales de una máquina guardada
-- [ ] La app reintenta la conexión automáticamente con backoff y muestra progreso al usuario
-- [ ] El usuario puede cancelar reintentos o forzar uno manualmente
+- ✓ Al iniciar una nueva sesión, el usuario puede elegir empezar en blanco o cargar un proyecto — v2.0 Phase 6
+- ✓ Usuario puede configurar una lista de carpetas de trabajo por máquina — v2.0 Phase 6
+- ✓ La app requiere autenticación biométrica al lanzarse (Face ID / huella / PIN) — v2.0 Phase 5
+- ✓ La app requiere autenticación biométrica al editar credenciales de una máquina guardada — v2.0 Phase 5
+- ✓ La app reintenta la conexión automáticamente con backoff y muestra progreso al usuario — v2.0 Phase 4
+- ✓ El usuario puede cancelar reintentos o forzar uno manualmente — v2.0 Phase 4
 
 ### Out of Scope
 
@@ -93,4 +93,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-06-20 after milestone v2.0 start*
+*Last updated: 2026-06-20 after Phase 6 complete (session start picker)*
