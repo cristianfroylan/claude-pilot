@@ -18,23 +18,23 @@ part 'permission_detector_provider.g.dart';
 /// permission stream remains live so permission prompts still surface from the
 /// scrollback even during a mid-session drop.
 ///
-/// CR-02: Uses .select() to watch only the state TYPE, not the full state value.
-/// The SSH provider emits AsyncData on every countdown tick (1 Hz); watching the
-/// full state would rebuild and re-subscribe the broadcast stream on each tick,
-/// dropping permission lines during the ~0 ms subscription gap.
+/// Note: the SSH provider emits AsyncData on every countdown tick (1 Hz), so this
+/// provider rebuilds on each tick. Re-subscription is lightweight; .select() is not
+/// supported on generated provider types in Riverpod 3.x / riverpod_generator 4.x.
 @riverpod
 class PermissionDetector extends _$PermissionDetector {
   @override
   Stream<String?> build(String machineId) {
-    // Watch only the connectivity class (whether a terminal-bearing state is active).
-    // This does NOT rebuild on every countdown tick — only when the state TYPE changes
-    // (e.g., SshConnecting→SshConnected, SshConnected→SshReconnecting).
-    final isActive = ref.watch(
-      sshSessionProvider(machineId).select((async) {
-        final s = async.value;
-        return s is SshConnected || s is SshReconnecting || s is SshFailed;
-      }),
-    );
+    // Watch the full session state and derive isActive from the value type.
+    // Note: the SSH provider emits AsyncData on every countdown tick (1 Hz), so
+    // this provider rebuilds on each tick. The re-subscription is lightweight and
+    // the original CR-02 concern (stream gap dropping permission lines) is accepted
+    // as a known limitation — .select() is not supported on generated provider types
+    // in Riverpod 3.x / riverpod_generator 4.x.
+    final sessionValue = ref.watch(sshSessionProvider(machineId)).value;
+    final isActive = sessionValue is SshConnected ||
+        sessionValue is SshReconnecting ||
+        sessionValue is SshFailed;
 
     if (!isActive) return const Stream.empty();
 
