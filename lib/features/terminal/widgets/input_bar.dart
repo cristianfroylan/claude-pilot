@@ -138,7 +138,10 @@ class _InputBarState extends ConsumerState<InputBar> {
           .sendBytes(bytes);
     }
 
-    void sendAndClose(List<int> bytes) => send(bytes);
+    void sendAndClose(List<int> bytes) {
+      send(bytes);
+      setState(() => _commandsVisible = false);
+    }
 
     void sendText(String text) {
       if (!isConnected) return;
