@@ -49,11 +49,9 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen> {
     // Retrieve machine metadata for display name.
     // Uses .value (nullable) — valueOrNull not available in installed Riverpod version.
     final machines = ref.watch(machineProvider).value;
-    final machine = machines?.cast<dynamic>().firstWhere(
-      (m) => m.id == widget.machineId,
-      orElse: () => null,
-    );
-    final machineName = (machine?.name as String?) ?? 'Terminal';
+    final machine =
+        machines?.where((m) => m.id == widget.machineId).firstOrNull;
+    final machineName = machine?.name ?? 'Terminal';
 
     // Transition listener: fire SnackBar on SshReconnecting→SshConnected (RECON-05 "Reconnected")
     // and keep the SshFailed notification for initial-connect exhaustion. No AlertDialog.
@@ -74,6 +72,10 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Could not connect to $machineName.')),
         );
+        // Reset so the picker appears again if the user manually reconnects
+        // after exhausting automatic retries — the old shell is gone, this is
+        // effectively a new session.
+        _pickerShown = false;
       }
 
       // PICK-01 / PICK-04: Show folder picker on FIRST SshConnected transition only.
@@ -81,11 +83,9 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen> {
       if (!_pickerShown && nextState is SshConnected) {
         _pickerShown = true;
         final allMachines = ref.read(machineProvider).value;
-        final pickerMachine = allMachines?.cast<dynamic>().firstWhere(
-          (m) => m.id == widget.machineId,
-          orElse: () => null,
-        );
-        final paths = pickerMachine?.folderPaths as List<String>?;
+        final pickerMachine =
+            allMachines?.where((m) => m.id == widget.machineId).firstOrNull;
+        final paths = pickerMachine?.folderPaths;
         if (paths != null && paths.isNotEmpty) {
           // addPostFrameCallback prevents "setState during build" assertion (Pitfall 2 in RESEARCH.md).
           WidgetsBinding.instance.addPostFrameCallback((_) {
