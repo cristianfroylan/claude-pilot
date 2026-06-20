@@ -151,7 +151,7 @@ Plans:
 
 **Wave 1**
 
-- [ ] 05-01-PLAN.md — Platform prerequisites + BiometricAuth provider (pubspec, Android FlutterFragmentActivity + USE_BIOMETRIC, iOS NSFaceIDUsageDescription, Riverpod keepAlive Notifier<bool>)
+- [x] 05-01-PLAN.md — Platform prerequisites + BiometricAuth provider (pubspec, Android FlutterFragmentActivity + USE_BIOMETRIC, iOS NSFaceIDUsageDescription, Riverpod keepAlive Notifier<bool>)
 
 **Wave 2** *(blocked on Wave 1 — consumes biometricAuthProvider and local_auth package)*
 
@@ -201,6 +201,6 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7
 | 2. Claude Code Remote | 3/3 | Complete | 2026-06-19 |
 | 3. Polish and Stability | 1/1 | Complete | 2026-06-19 |
 | 4. Reconexión Robusta | 3/3 | Complete   | 2026-06-20 |
-| 5. Autenticación Biométrica | 0/3 | Not started | - |
+| 5. Autenticación Biométrica | 1/3 | In Progress|  |
 | 6. Session Start Picker | 0/? | Not started | - |
 | 7. Sesiones Múltiples con Tabs | 0/? | Not started | - |

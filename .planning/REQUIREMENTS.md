@@ -67,10 +67,10 @@
 
 ### Autenticación biométrica (BIO)
 
-- [ ] **BIO-01**: La app requiere autenticación biométrica (Face ID / huella / PIN del dispositivo) al iniciarse en frío
-- [ ] **BIO-02**: La app requiere autenticación biométrica antes de editar las credenciales de una máquina guardada
-- [ ] **BIO-03**: La app se vuelve a bloquear si estuvo en background más de 10 minutos
-- [ ] **BIO-04**: En dispositivos sin biométrico disponible, el PIN/contraseña del dispositivo funciona como fallback automático (manejado por el OS, sin código extra)
+- [x] **BIO-01**: La app requiere autenticación biométrica (Face ID / huella / PIN del dispositivo) al iniciarse en frío
+- [x] **BIO-02**: La app requiere autenticación biométrica antes de editar las credenciales de una máquina guardada
+- [x] **BIO-03**: La app se vuelve a bloquear si estuvo en background más de 10 minutos
+- [x] **BIO-04**: En dispositivos sin biométrico disponible, el PIN/contraseña del dispositivo funciona como fallback automático (manejado por el OS, sin código extra)
 
 ### Session start picker (PICK)
 
@@ -128,10 +128,10 @@
 | RECON-03 | Phase 4 | Complete |
 | RECON-04 | Phase 4 | Complete |
 | RECON-05 | Phase 4 | Complete |
-| BIO-01 | Phase 5 | Pending |
-| BIO-02 | Phase 5 | Pending |
-| BIO-03 | Phase 5 | Pending |
-| BIO-04 | Phase 5 | Pending |
+| BIO-01 | Phase 5 | Complete |
+| BIO-02 | Phase 5 | Complete |
+| BIO-03 | Phase 5 | Complete |
+| BIO-04 | Phase 5 | Complete |
 | PICK-01 | Phase 6 | Pending |
 | PICK-02 | Phase 6 | Pending |
 | PICK-03 | Phase 6 | Pending |
