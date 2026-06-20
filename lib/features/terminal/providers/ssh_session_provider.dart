@@ -90,7 +90,11 @@ class SshSession extends _$SshSession {
     _isMidSession = false;
 
     final machine = ref.read(machineProvider.notifier).get(machineId);
-    if (machine == null) throw StateError('Machine $machineId not found');
+    if (machine == null) {
+      // Throwing here produces AsyncError → perpetual spinner with no recovery.
+      // Instead, emit SshFailed so the failed-overlay with a Retry button is shown.
+      return SshFailed(_terminal!);
+    }
 
     final password =
         await ref.read(machineProvider.notifier).getPassword(machineId);
