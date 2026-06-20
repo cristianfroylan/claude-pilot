@@ -1,6 +1,7 @@
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../models/permission_detector.dart';
+import '../models/ssh_session_state.dart';
 import 'ssh_session_provider.dart';
 
 part 'permission_detector_provider.g.dart';
@@ -11,8 +12,11 @@ part 'permission_detector_provider.g.dart';
 /// detected, or null when no permission prompt is present. The null emission
 /// drives the AnimatedSwitcher to hide the PermissionCard.
 ///
-/// Detection is gated on session state — emits Stream.empty() while connecting
-/// or on error, so the card never appears when there is no active SSH session.
+/// Detection is gated on session state — emits Stream.empty() while the initial
+/// connection is in progress (SshConnecting, loading, error). For all states that
+/// carry an active Terminal (SshConnected, SshReconnecting, SshFailed), the
+/// permission stream remains live so permission prompts still surface from the
+/// scrollback even during a mid-session drop.
 @riverpod
 class PermissionDetector extends _$PermissionDetector {
   @override
@@ -21,9 +25,19 @@ class PermissionDetector extends _$PermissionDetector {
     return sessionAsync.when(
       loading: () => const Stream.empty(),
       error: (_, __) => const Stream.empty(),
-      data: (_) {
-        final notifier = ref.read(sshSessionProvider(machineId).notifier);
-        return notifier.permissionStream.map(_detect);
+      data: (sessionState) {
+        return switch (sessionState) {
+          // No terminal yet — suppress the permission stream until connected.
+          SshConnecting() => const Stream.empty(),
+          // All other states carry a terminal — keep the permission stream live.
+          SshConnected() ||
+          SshReconnecting() ||
+          SshFailed() =>
+            ref
+                .read(sshSessionProvider(machineId).notifier)
+                .permissionStream
+                .map(_detect),
+        };
       },
     );
   }

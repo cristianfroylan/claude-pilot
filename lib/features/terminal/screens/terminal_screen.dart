@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../machines/providers/machines_provider.dart';
+import '../models/ssh_session_state.dart';
 import '../providers/permission_detector_provider.dart';
 import '../providers/ssh_session_provider.dart';
 import '../widgets/input_bar.dart';
@@ -13,6 +14,11 @@ import '../widgets/terminal_view_wrapper.dart';
 ///
 /// Shows connection status in the AppBar, renders ANSI output via TerminalView,
 /// and provides the InputBar for sending text and control signals.
+///
+/// The body switches on AsyncValue<SshSessionState>. States carrying a terminal
+/// (SshConnected, SshReconnecting, SshFailed) render TerminalViewWrapper to
+/// keep the xterm PTY mounted and scrollback preserved (RECON-05).
+/// Plan 04-03 will add overlay/banner widgets on top of this via a Stack.
 class TerminalScreen extends ConsumerWidget {
   final String machineId;
 
@@ -36,53 +42,33 @@ class TerminalScreen extends ConsumerWidget {
     );
     final machineName = (machine?.name as String?) ?? 'Terminal';
 
-    // Error dialog: fires once on transition into error state (T-03-03).
-    // — Connection drop while active: brief message, no config link needed.
-    // — Failed to connect after 3 retries: offer to open the edit screen.
+    // Transition listener: show a lightweight SnackBar when SshFailed is
+    // reached (replaces the old AlertDialog + SshSession.maxAttempts reference).
+    // Plan 04-03 adds the full reconnect overlay; this SnackBar is a minimal
+    // fallback until that plan ships.
     ref.listen(sshSessionProvider(machineId), (prev, next) {
-      if (next.hasError && !(prev?.hasError ?? false)) {
-        final wasConnected = prev?.hasValue ?? false;
-        if (wasConnected) {
-          // Mid-session drop — light SnackBar, no action required.
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Connection to $machineName lost.')),
-          );
-          return;
-        }
-        // Failed to connect after all retries — offer config review.
-        showDialog<void>(
-          context: context,
-          barrierDismissible: false,
-          builder: (dialogContext) => AlertDialog(
-            title: const Text('Could not connect'),
-            content: Text(
-              'We tried ${SshSession.maxAttempts} times and could not reach '
-              '$machineName. Do you want to review the machine settings?',
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(dialogContext).pop(),
-                child: const Text('Not now'),
-              ),
-              FilledButton(
-                onPressed: () {
-                  Navigator.of(dialogContext).pop();
-                  context.go('/machines/$machineId/edit');
-                },
-                child: const Text('Review settings'),
-              ),
-            ],
-          ),
+      final prevState = prev?.value;
+      final nextState = next.value;
+
+      if (nextState is SshFailed && prevState is! SshFailed) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Could not connect to $machineName.')),
         );
       }
     });
 
     // Build status label for AppBar subtitle.
-    final statusLabel = sessionAsync.when(
-      loading: () => 'Connecting…',
-      error: (_, __) => 'Connection failed',
-      data: (_) => 'Connected',
-    );
+    final statusLabel = switch (sessionAsync.value) {
+      SshConnecting() => 'Connecting…',
+      SshReconnecting() => 'Reconnecting…',
+      SshFailed() => 'Connection failed',
+      SshConnected() => 'Connected',
+      null => 'Connecting…',
+    };
+
+    // Whether to show the pulsing dot in the AppBar.
+    final isPulsing = sessionAsync.value is SshConnecting ||
+        sessionAsync.value is SshReconnecting;
 
     // Clamp text scale factor to 1.3 to prevent terminal layout overflow
     // when the user has a large system font size (UI-SPEC.md).
@@ -100,8 +86,8 @@ class TerminalScreen extends ConsumerWidget {
           automaticallyImplyLeading: false,
           title: Row(
             children: [
-              // Animated pulsing dot only during connecting state (UI-SPEC).
-              if (sessionAsync.isLoading)
+              // Animated pulsing dot during connecting/reconnecting states.
+              if (isPulsing)
                 const Padding(
                   padding: EdgeInsets.only(right: 8),
                   child: _ConnectingDot(),
@@ -138,21 +124,22 @@ class TerminalScreen extends ConsumerWidget {
           child: Column(
             children: [
               // Terminal view — expands to fill remaining space above InputBar.
+              // Switch on the sealed SshSessionState variant.
+              // Plan 04-03 adds overlay/banner widgets on top via a Stack.
               Expanded(
-                child: sessionAsync.when(
-                  loading: () =>
-                      const Center(child: CircularProgressIndicator()),
-                  error: (e, _) => Center(child: Text('$e')),
-                  data: (terminal) {
-                    final keyboardHeight =
-                        MediaQuery.of(context).viewInsets.bottom;
-                    return TerminalViewWrapper(
-                      key: ValueKey(keyboardHeight),
+                child: switch (sessionAsync.value) {
+                  SshConnected(:final terminal) ||
+                  SshReconnecting(:final terminal) ||
+                  SshFailed(:final terminal) =>
+                    TerminalViewWrapper(
+                      key: ValueKey(
+                          MediaQuery.of(context).viewInsets.bottom),
                       machineId: machineId,
                       terminal: terminal,
-                    );
-                  },
-                ),
+                    ),
+                  SshConnecting() || null =>
+                    const Center(child: CircularProgressIndicator()),
+                },
               ),
               // Permission card — slides in above InputBar when Claude Code shows
               // a permission prompt. AnimatedSwitcher requires distinct ValueKeys

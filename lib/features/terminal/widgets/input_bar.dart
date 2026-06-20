@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:speech_to_text/speech_to_text.dart';
 
+import '../models/ssh_session_state.dart';
 import '../providers/ssh_session_provider.dart';
 import 'voice_bottom_sheet.dart';
 
@@ -126,8 +127,8 @@ class _InputBarState extends ConsumerState<InputBar> {
 
   @override
   Widget build(BuildContext context) {
-    final isConnected =
-        ref.watch(sshSessionProvider(widget.machineId)).hasValue;
+    final stateValue = ref.watch(sshSessionProvider(widget.machineId)).value;
+    final isConnected = stateValue is SshConnected;
     final colorScheme = Theme.of(context).colorScheme;
 
     void send(List<int> bytes) {
