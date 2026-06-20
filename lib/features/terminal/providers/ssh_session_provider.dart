@@ -306,7 +306,10 @@ class SshSession extends _$SshSession {
       try {
         _terminal!.write(data);
       } catch (_) {}
-      _permissionController.add(data); // feed all stdout/stderr to permission detector
+      // Guard against StateError if _permissionController is closed (dispose race).
+      if (!_permissionController.isClosed) {
+        _permissionController.add(data); // feed all stdout/stderr to permission detector
+      }
     }
 
     _stdoutSub = _sshSession!.stdout
