@@ -301,7 +301,459 @@ When calling `client.shell()`, always set `environment: {'TERM': 'xterm-256color
 
 ---
 
-## Phase-Specific Warnings
+---
+
+# V2.0 MILESTONE PITFALLS
+
+*Added: 2026-06-20. Specific to adding multi-session tabs, session start picker, biometric lock, and robust reconnection to the existing codebase.*
+
+---
+
+## Feature 1: Multi-Session Tabs
+
+---
+
+### Pitfall T1-01: autoDispose Kills Sessions When Tab Is Not Visible (CRITICAL)
+
+**What goes wrong:**
+`SshSession` is declared `@riverpod` which generates an `autoDispose.family` provider. Riverpod destroys an autoDispose provider one frame after its last listener is removed. When using a `TabBar` with standard `TabBarView` (not `IndexedStack`), the widget for the non-visible tab is unmounted. The `Consumer`/`ref.watch(sshSessionProvider(id))` inside that tab widget loses its listener. One frame later, Riverpod calls `ref.onDispose`, which fires `_disposed = true`, `_sshSession.close()`, `_client.close()`. The SSH session is terminated while the tab is just hidden.
+
+**Why it happens in this codebase specifically:**
+The existing `SshSession` provider already has `_disposed = true` set in `onDispose` and immediately calls `_sshSession?.close()`. There is no keepAlive call anywhere. Adding a second tab will reproduce this silently on the first tab switch.
+
+**Consequences:** Every tab switch terminates the SSH connection to the inactive tab. The user returns to find the terminal dead and must reconnect manually.
+
+**Prevention:**
+Two-part solution:
+
+1. **Navigator structure:** Use `StatefulShellRoute.indexedStack` from go_router (not plain `TabBarView`). This keeps all branch widgets in the widget tree even when not visible, preserving their `ref.watch` listeners and preventing autoDispose from firing. This is the correct architectural solution — do not use PageView or standard TabBarView.
+
+2. **Explicit keepAlive as defense-in-depth:** Inside `SshSession.build()`, after the connection succeeds, call `ref.keepAlive()`. This prevents disposal even if a listener is accidentally dropped:
+   ```dart
+   @override
+   Future<Terminal> build(String machineId) async {
+     ref.onDispose(() { ... }); // existing cleanup
+     final link = ref.keepAlive(); // ADD THIS
+     // ... rest of build
+   }
+   ```
+   Call `link.close()` only when the user explicitly closes a tab. This gives explicit control rather than relying on widget lifecycle alone.
+
+**Phase to address:** Multi-session tabs phase. The `StatefulShellRoute.indexedStack` navigation structure must be decided before writing any tab UI code — it affects the entire routing architecture in `app.dart`.
+
+---
+
+### Pitfall T1-02: Riverpod 3 TickerMode Pausing Streams on Hidden Tabs
+
+**What goes wrong:**
+Riverpod 3 uses `TickerMode` to pause provider listeners when the widget hosting them is invisible. For a `StreamProvider` or a `Consumer` watching `sshSessionProvider`, this means the stdout stream listener may be paused when the tab is in the background. SSH data arriving while the tab is hidden is not consumed from the stream buffer. If the buffer fills (unlikely but possible with large Claude Code output bursts), the SSH channel can block.
+
+**Why this is different from T1-01:** TickerMode pausing does NOT dispose the provider — the `SSHClient` stays connected and keepalive packets still fire. The problem is only that stdout bytes queue up unread. When the user returns to the tab, xterm receives a burst of buffered data and replays it correctly. This is acceptable behavior for this app.
+
+**Prevention:**
+Accept the buffering behavior — it is correct. The user will see a brief "catch-up" burst of output when returning to a tab. Do not try to work around TickerMode pausing. If the xterm terminal feels sluggish on tab return, increase `Terminal(maxLines: 5000)` to ensure the buffer holds more history without dropping lines.
+
+**Phase to address:** Multi-session tabs phase. Note in implementation docs that this behavior is intentional.
+
+---
+
+### Pitfall T1-03: SSHClient Not Closed When Tab Is Explicitly Removed (Resource Leak)
+
+**What goes wrong:**
+When using `ref.keepAlive()` (from T1-01 prevention), autoDispose no longer closes the session automatically. If the user closes a tab (removes the session), the app must explicitly call `ref.invalidate(sshSessionProvider(machineId))` or close the keepAlive link to let autoDispose fire. Forgetting this leaves `SSHClient` open, the TCP socket open, and the remote shell running indefinitely. With 3-4 tabs opened and closed over time, the server accumulates zombie sessions.
+
+**Prevention:**
+Maintain a tab list in a separate `@Riverpod(keepAlive: true)` notifier (e.g., `activeTabsProvider`). When removing a tab from this list, explicitly invalidate the corresponding session provider:
+```dart
+ref.invalidate(sshSessionProvider(machineId));
+```
+This triggers onDispose, which closes `_sshSession` and `_client`. Test this by checking `who` on the server after closing tabs — zombie sessions are visible there.
+
+**Phase to address:** Multi-session tabs phase. Add a tab close test case: open 3 tabs, close 2, verify server shows only 1 active session.
+
+---
+
+### Pitfall T1-04: go_router Route Change Disposes TerminalScreen When Navigating Away
+
+**What goes wrong:**
+The current routing in `app.dart` uses a nested `GoRoute` at `/machines/:id/terminal`. This is a push-based route — navigating to `/machines` pops TerminalScreen off the stack and disposes it. When adding multi-session tabs, if the tab implementation uses the existing push route instead of a shell route, navigating back to the machine list destroys all active terminal sessions.
+
+**Prevention:**
+Migrate the terminal feature to a `StatefulShellRoute` with separate branches for each active session. The machine list becomes a separate branch or a modal overlay, not a route that replaces the terminal stack. This is an architectural change to `app.dart` — design it once at the start of the multi-session phase, not as a retrofit.
+
+**Phase to address:** Multi-session tabs phase, first task. Audit `app.dart` routing before adding any tab UI.
+
+---
+
+## Feature 2: Session Start Picker (ls + cd over SSH)
+
+---
+
+### Pitfall T2-01: Running ls Before SSH Session Is Fully Authenticated
+
+**What goes wrong:**
+The dartssh2 `SSHClient` constructor returns immediately after the TCP handshake begins, but authentication (password exchange, key verification) happens asynchronously. If the directory picker calls `client.run('ls')` immediately after `SSHClient(...)`, it may execute before the SSH handshake completes and throw `SSHStateError` or return empty output.
+
+**Prevention:**
+Always await `client.authenticated` before issuing any commands. The dartssh2 `SSHClient` exposes this future:
+```dart
+await client.authenticated;
+final result = await client.run('ls -1ap');
+```
+In the existing codebase, `SshSession.build()` already awaits `client.shell()` which implicitly completes after authentication. For the directory picker, use a separate `client.run()` call (not the shell PTY) and await `client.authenticated` first.
+
+**Phase to address:** Session start picker phase.
+
+---
+
+### Pitfall T2-02: Using ls Text Output Parsing Instead of SFTP listdir
+
+**What goes wrong:**
+Parsing `ls` output for a directory picker is brittle:
+- Filenames with spaces: `ls -l` splits on spaces, breaking filenames like `my project/`
+- Symlinks: `ls -l` shows `link -> target`, which requires special parsing to distinguish from regular files
+- Localization: `ls` output format (date format, column order) differs by `LANG` setting
+- Color codes: if TERM/COLORTERM is set, `ls` may emit ANSI color codes that pollute the parsed output
+- Dotfiles: `ls` without `-a` hides them; `ls -a` includes `.` and `..` which must be filtered
+
+The correct alternative is dartssh2's SFTP `listdir`:
+```dart
+final sftp = await client.sftp();
+final items = await sftp.listdir(path);
+```
+SFTP `listdir` returns structured `SftpName` objects with `.filename`, `.attr.type` (file/dir/symlink), and `.longname` — no text parsing required.
+
+**Prevention:**
+Use `client.sftp()` + `sftp.listdir(path)` for the directory picker. Filter by `attr.type == SftpFileType.directory`. This eliminates all parsing edge cases.
+
+**Phase to address:** Session start picker phase.
+
+---
+
+### Pitfall T2-03: Session Drop Between ls and cd — User Left Stranded
+
+**What goes wrong:**
+The session start picker shows directories from `sftp.listdir()`. The user selects one. Between the SFTP list call and the `cd` command being sent to the shell PTY, the SSH session could drop (Wi-Fi hiccup, server restart). The `cd` is sent to a dead session, the reconnection logic fires, and reconnection starts a fresh shell in the home directory — not the directory the user selected. The selected directory context is silently lost.
+
+**Prevention:**
+Store the selected directory path in the Riverpod notifier or pass it as a parameter to the reconnection logic:
+```dart
+// After user selects directory, store in session state
+_selectedStartDirectory = selectedPath;
+
+// During reconnection/shell init, send cd as first command
+if (_selectedStartDirectory != null) {
+  _sshSession!.write(utf8.encode('cd ${shellEscape(_selectedStartDirectory!)}\n'));
+}
+```
+Always shell-escape the path before sending it as a command (`path.replaceAll("'", "'\\''")` for single-quote escaping). Test with paths containing spaces.
+
+**Phase to address:** Session start picker phase. Also inform the reconnection phase (Feature 4) so reconnection logic knows to re-apply the start directory.
+
+---
+
+### Pitfall T2-04: SFTP Client Left Open After Directory Picker Closes
+
+**What goes wrong:**
+`client.sftp()` opens an SFTP subsystem channel over the existing SSH transport. If the SFTP client is not explicitly closed after the directory listing completes, the channel remains open for the lifetime of the SSH session. With multiple tab sessions each opening an SFTP channel for the picker, the server accumulates open SFTP channels. Some SSH server configurations limit simultaneous channels per connection.
+
+**Prevention:**
+Always close the SFTP client after the listing completes:
+```dart
+final sftp = await client.sftp();
+try {
+  final items = await sftp.listdir(path);
+  return items;
+} finally {
+  sftp.close();
+}
+```
+
+**Phase to address:** Session start picker phase.
+
+---
+
+## Feature 3: Biometric App Lock
+
+---
+
+### Pitfall T3-01: NSFaceIDUsageDescription Missing Causes Silent Crash on iOS (CRITICAL)
+
+**What goes wrong:**
+iOS requires `NSFaceIDUsageDescription` in `ios/Runner/Info.plist` before any app can use Face ID. Without this key, the app crashes silently when `authenticate()` is called on a Face ID-capable device. The crash happens at the OS level before any Dart code can catch it. The user sees the app disappear with no error message.
+
+**Prevention:**
+Add to `ios/Runner/Info.plist` before writing any `local_auth` code:
+```xml
+<key>NSFaceIDUsageDescription</key>
+<string>Claude Pilot uses Face ID to protect access to your SSH credentials.</string>
+```
+This must be done even if biometricOnly is false — the OS checks for this key whenever Face ID hardware is present, regardless of whether Face ID was actually used.
+
+**Phase to address:** Biometric lock phase, first task before any local_auth integration.
+
+---
+
+### Pitfall T3-02: Android MainActivity Must Extend FlutterFragmentActivity
+
+**What goes wrong:**
+`local_auth` on Android uses `BiometricPrompt`, which requires a `FragmentActivity` to display its system overlay. If `MainActivity` extends `FlutterActivity` (the Flutter default), `local_auth` throws `PlatformException: Activity is not a FragmentActivity` at runtime. The biometric prompt never appears.
+
+**Prevention:**
+Change `android/app/src/main/kotlin/.../MainActivity.kt`:
+```kotlin
+// Change from:
+class MainActivity: FlutterActivity()
+// To:
+class MainActivity: FlutterFragmentActivity()
+```
+Also add to `AndroidManifest.xml`:
+```xml
+<uses-permission android:name="android.permission.USE_BIOMETRIC" />
+```
+
+**Phase to address:** Biometric lock phase, first task alongside T3-01.
+
+---
+
+### Pitfall T3-03: biometricOnly: true Locks Out Users Without Enrolled Biometrics
+
+**What goes wrong:**
+Using `authenticate(options: AuthenticationOptions(biometricOnly: true))` on a device with no enrolled biometrics (or on emulators) throws `LocalAuthException` with code `noBiometricHardware` or `notEnrolled`. With `biometricOnly: true`, there is no fallback to device PIN/passcode. The user is completely locked out of the app. This is a particularly bad failure for an SSH remote control — the user is locked out of their Claude Code session.
+
+**Prevention:**
+Use `biometricOnly: false` (the default). This allows the OS biometric UI to fall back to device PIN/password if biometrics fail or are unavailable. Before calling `authenticate()`, call `isDeviceSupported()` — if it returns `false`, the device has no authentication hardware at all; in that case, show a settings prompt or allow access without biometric (the app does not store sensitive data beyond SSH credentials already protected by flutter_secure_storage).
+
+**Phase to address:** Biometric lock phase.
+
+---
+
+### Pitfall T3-04: App Re-Lock on Background Is Not Automatic — Must Be Implemented Manually
+
+**What goes wrong:**
+`local_auth` provides authentication at a single call point. It does not track whether the app has been backgrounded and re-foregrounded. If the developer calls `authenticate()` only at app launch and does nothing else, a user can authenticate once, background the app, and return to it days later with full access — the biometric lock is bypassed. This is a common misunderstanding of what `local_auth` does.
+
+**Prevention:**
+Implement a `@Riverpod(keepAlive: true)` auth state notifier:
+```dart
+@Riverpod(keepAlive: true)
+class BiometricLock extends _$BiometricLock {
+  @override
+  bool build() => false; // false = locked
+  
+  void unlock() => state = true;
+  void lock() => state = false;
+}
+```
+Use `WidgetsBindingObserver` (in a root widget or in a `ref.listen`) to monitor `AppLifecycleState`. When the app transitions to `hidden` or `paused`, call `lock()`. When it transitions back to `resumed`, if `state == false` (locked), show the biometric prompt. The `AppLifecycleState.hidden` state fires consistently on both iOS and Android before `paused` — use it as the lock trigger.
+
+**Why `keepAlive: true`:** The auth state must survive navigation, tab switches, and any other provider disposal. Using `@riverpod` (autoDispose) here would silently reset the auth state to `false` (locked) any time no widget was watching it, which could cause spurious re-authentication prompts.
+
+**Phase to address:** Biometric lock phase.
+
+---
+
+### Pitfall T3-05: Auth State Stored in an autoDispose Provider — Accidentally Resets
+
+**What goes wrong:**
+If the biometric auth state is stored in a provider that uses `@riverpod` (autoDispose), the state resets to "locked" the moment no widget is watching it. This happens during navigation transitions, during the loading state of the machine list, or any time the auth UI widget unmounts briefly. The user is shown the biometric prompt again even though they just authenticated.
+
+**Prevention:**
+Declare the biometric lock provider with `@Riverpod(keepAlive: true)` (or `keepAlive: true` in annotation form). The auth state should live as long as the app process — it is global singleton state. This is one of the few valid uses of keepAlive: true in this codebase. Do not mix this with the SSH session providers (which correctly use autoDispose).
+
+**Phase to address:** Biometric lock phase.
+
+---
+
+### Pitfall T3-06: stickyAuth: false (Default) Cancels Auth on iOS Phone Calls
+
+**What goes wrong:**
+By default, `authenticate()` has `stickyAuth: false`. If the user receives a phone call while the Face ID prompt is displayed, iOS backgrounds the app. With `stickyAuth: false`, the authentication call returns `false` (failure) immediately. The app locks itself out and the user must tap the biometric button again after their call. Worse, if the app interprets a `false` return as a security failure and shows an error state, the user is confused.
+
+**Prevention:**
+Use `stickyAuth: true`:
+```dart
+await auth.authenticate(
+  localizedReason: '...',
+  options: const AuthenticationOptions(stickyAuth: true),
+);
+```
+With `stickyAuth: true`, if the app is backgrounded during authentication, the plugin retries authentication when the app resumes. This is the correct behavior for an app-lock feature.
+
+**Phase to address:** Biometric lock phase.
+
+---
+
+## Feature 4: Robust Reconnection
+
+---
+
+### Pitfall T4-01: Timer.periodic in Retry Loop Not Cancelled on Dispose — Causes Crash (CRITICAL)
+
+**What goes wrong:**
+The current `SshSession.build()` uses `await Future.delayed(const Duration(seconds: 1))` for retry delays (line 71). For robust reconnection, the temptation is to replace this with a `Timer.periodic` or a series of `Timer` calls for exponential backoff. If the `Timer` is created inside `build()` or a method called from `build()`, and `ref.onDispose` does not cancel it, the timer fires after the provider is disposed. The timer callback calls `state = AsyncLoading()` or attempts to reconnect on a disposed notifier, causing a `StateError: Notifier disposed` crash or a "setState called after dispose" equivalent.
+
+**Why this is especially dangerous in this codebase:**
+`SshSession.build()` is `async` and the disposal guard `_disposed = true` only prevents new connection attempts via the `for` loop. A separate `Timer` created outside that loop would bypass the `_disposed` check entirely.
+
+**Prevention:**
+Always register timer cancellation in `ref.onDispose` BEFORE creating the timer, using the pattern:
+```dart
+Timer? _retryTimer;
+
+// In ref.onDispose (registered at top of build):
+ref.onDispose(() {
+  _disposed = true;
+  _retryTimer?.cancel();
+  _sshSession?.close();
+  _client?.close();
+  _permissionController.close();
+});
+
+// When creating a retry timer:
+_retryTimer = Timer(delay, _attemptReconnect);
+```
+Alternatively, keep using `Future.delayed` with `_disposed` checks (the current pattern) extended with exponential backoff via a loop variable:
+```dart
+final delay = Duration(seconds: min(pow(2, attempt).toInt(), 30));
+await Future.delayed(delay);
+if (_disposed) break;
+```
+This is safer than a standalone Timer because `Future.delayed` is cancelled implicitly when the Dart isolate no longer holds a reference to the completer. However, explicitly checking `_disposed` after every `await` remains essential.
+
+**Phase to address:** Robust reconnection phase. Audit every `await` in `SshSession.build()` and any methods it calls — each one needs a `if (_disposed) return;` guard after it.
+
+---
+
+### Pitfall T4-02: Retry Loop Fires After ref.onDispose — Race Condition with Async Gap
+
+**What goes wrong:**
+`ref.onDispose` is synchronous, but the retry loop in `build()` is `async`. There is a window between when `onDispose` sets `_disposed = true` and when the currently-awaited `Future.delayed` or `_connectOnce` call completes. During this window, the code after the `await` runs and may call `state = AsyncError(...)` or attempt to write to `_permissionController` after it has been closed. In the existing code (line 91), `_client!.done.catchError` calls `state = AsyncError(e, StackTrace.current)` without checking `_disposed` first.
+
+**Prevention:**
+Wrap every state mutation after an await with the `_disposed` guard:
+```dart
+_client!.done.catchError((Object e) {
+  if (!_disposed) state = AsyncError(e, StackTrace.current); // already done in existing code
+});
+```
+For the new reconnection logic, add the guard after every `await`:
+```dart
+await Future.delayed(delay);
+if (_disposed) return; // guard every await point
+```
+This pattern is already partially present in the existing code — extend it consistently to all new awaits added during the reconnection refactor.
+
+**Phase to address:** Robust reconnection phase.
+
+---
+
+### Pitfall T4-03: Emitting AsyncLoading During Retry Clears Terminal State
+
+**What goes wrong:**
+The temptation during reconnection is to emit `state = AsyncLoading()` to show a spinner. However, `SshSession` returns `AsyncValue<Terminal>`. When `state` becomes `AsyncLoading`, any widget doing `ref.watch(sshSessionProvider(id)).when(data: (terminal) => TerminalView(terminal))` re-renders the loading state, which unmounts `TerminalView`. The `xterm` `Terminal` object is the in-memory buffer holding all the scrollback history. If `TerminalView` is unmounted and the `Terminal` object is recreated on the next connection, the user loses all terminal history.
+
+**Prevention:**
+Use a separate reconnection state — do not reuse `AsyncLoading`. Options:
+1. Keep `state` as `AsyncData(terminal)` with the existing `Terminal` object during reconnection. Add a separate `bool _reconnecting` field to the notifier and expose it via a second provider or a custom data class.
+2. Use `AsyncValue.data` with a custom `SessionState` class that includes both the `Terminal` and a `ReconnectionStatus` enum.
+
+The second option is cleaner but requires changing the provider type. Option 1 (separate field with a separate small provider) is lower risk during the reconnection phase:
+```dart
+// Separate provider for reconnection UI state
+@riverpod
+class SshReconnecting extends _$SshReconnecting { ... }
+```
+The `Terminal` object must survive reconnection — do not recreate it. Pass the existing `Terminal` back to the new `SSHSession` stdout listener on successful reconnect.
+
+**Phase to address:** Robust reconnection phase.
+
+---
+
+### Pitfall T4-04: iOS Suspends Background Timers — Reconnection Never Fires While Backgrounded
+
+**What goes wrong:**
+iOS suspends Dart isolates when the app goes to background. All timers, `Future.delayed`, and `Timer.periodic` stop executing. If the SSH connection drops while the app is backgrounded, the reconnection timer never fires until the user brings the app to the foreground. This is expected iOS behavior, but it means the app cannot proactively reconnect in the background — it must reconnect reactively when the user returns.
+
+**What not to do:** Do not attempt to use `flutter_background_service` or iOS background modes for reconnection. Background fetch runs at most every 15 minutes and is allowed only ~30 seconds of execution. It is not suitable for maintaining SSH connections.
+
+**Prevention:**
+Design reconnection as a foreground-only operation:
+1. On `AppLifecycleState.resumed`, detect that the connection is dead (via `_disposed`, `_client?.isClosed`, or a liveness probe).
+2. Trigger reconnection immediately on resume, before the user interacts.
+3. Show a reconnecting UI overlay on the terminal screen on resume if connection is lost.
+
+Do not design reconnection to "run in the background." Design it to "reconnect instantly on foreground." This matches user expectations: the user opens the app and sees "Reconnecting..." for 1-2 seconds, which is acceptable.
+
+**Phase to address:** Robust reconnection phase. Coordinate with `WidgetsBindingObserver` from T3-04 — the same lifecycle observer handles both biometric re-lock and reconnection trigger.
+
+---
+
+### Pitfall T4-05: Riverpod 3 Built-In Auto-Retry May Conflict With Custom Retry Logic
+
+**What goes wrong:**
+Riverpod 3.0 introduced automatic retry for providers that fail during initialization with exponential backoff (starting at 200ms, doubling to max 6.4s). If `SshSession.build()` throws during connection, Riverpod 3 may automatically retry the `build()` method. This interacts with the custom retry loop already in `build()` — the result could be nested retries: 3 inner retry attempts per outer Riverpod-triggered build retry, creating up to 9 connection attempts per reconnection event.
+
+**Prevention:**
+Disable Riverpod 3's auto-retry for `SshSession` explicitly:
+```dart
+@Riverpod(retry: false) // or equivalent annotation
+class SshSession extends _$SshSession { ... }
+```
+Use only the custom retry logic already present in `build()`, extended with exponential backoff. This gives full control over retry timing, maximum attempts, and error state transitions.
+
+Check the Riverpod 3 documentation/changelog for the exact annotation or configuration API for disabling auto-retry — this was introduced in 3.0 and the API may differ from the snippet above.
+
+**Phase to address:** Robust reconnection phase. Verify Riverpod 3 retry behavior before implementing custom backoff.
+
+---
+
+## Integration Pitfalls (Cross-Feature)
+
+---
+
+### Pitfall I-01: Biometric Lock Prompt Races With SSH Reconnection on App Resume
+
+**What goes wrong:**
+On app resume after backgrounding, two things must happen: biometric re-authentication (Feature 3) and SSH session liveness check/reconnection (Feature 4). If implemented independently, they race each other. The SSH reconnection attempt may complete (or fail and show an error dialog) while the biometric prompt is still on screen, resulting in an error dialog appearing behind the biometric overlay, or a reconnection completing that the user cannot see because they are still authenticating.
+
+**Prevention:**
+Sequence these operations explicitly on `AppLifecycleState.resumed`:
+1. Set `BiometricLock.state = locked` (synchronous).
+2. Show biometric prompt and await result.
+3. Only if authentication succeeds: trigger SSH liveness check and reconnection.
+
+Use a single `AppLifecycleObserver` at the root widget level (not inside each tab) to coordinate both operations. A Riverpod `ref.listen(biometricLockProvider, ...)` in the reconnection logic can trigger reconnection only after the lock is cleared.
+
+**Phase to address:** Implement in the later of biometric lock and robust reconnection phases. If implementing reconnection first, add a placeholder check (`if (isLocked) return`) for the biometric gate.
+
+---
+
+### Pitfall I-02: Session Start Picker State Lost on Reconnection
+
+**What goes wrong:**
+The session start picker selects an initial working directory. After reconnection, the shell starts in the SSH user's home directory. The selected working directory is not re-applied. The user sees the terminal reconnected but `pwd` returns `~` instead of the previously selected project directory.
+
+**Prevention:**
+Store the selected start directory in the `SshSession` notifier as a field (`String? _startDirectory`). In the `_connectOnce` method, after the PTY shell is established, send `cd` as the first command if `_startDirectory != null`. This must also work during Riverpod's retry and during the explicit reconnection triggered by Feature 4.
+
+**Phase to address:** Ensure this is handed off between the session picker phase and the reconnection phase in the implementation plan.
+
+---
+
+### Pitfall I-03: Multiple Active SSH Clients Saturate LAN Connection or Server Session Limit
+
+**What goes wrong:**
+With multi-session tabs, each tab opens a separate `SSHClient` (TCP connection + SSH transport) to the same server. Claude Code on the server may also open its own sub-processes. The server's SSH daemon has a configurable `MaxSessions` limit (default 10 in OpenSSH). With 3-4 tabs open, plus a session picker's SFTP channel (if not closed, see T2-04), the limit can be reached. New connection attempts fail with `too many sessions` or `connection refused`.
+
+**Prevention:**
+Close SFTP clients after use (T2-04). Limit the number of concurrent sessions to a reasonable maximum (e.g., 4) in the tab manager UI. Validate that SFTP channels are torn down before the tab connection count becomes the binding constraint.
+
+**Phase to address:** Multi-session tabs phase. Test with 4 tabs + SFTP channel open simultaneously on the actual CachyOS server.
+
+---
+
+## Updated Phase-Specific Warnings
 
 | Phase | Topic | Likely Pitfall | Mitigation |
 |-------|-------|---------------|------------|
@@ -315,11 +767,29 @@ When calling `client.shell()`, always set `environment: {'TERM': 'xterm-256color
 | 2 | Voice dictation | SDK 30+ silent init failure | Add <queries> intent block before writing recognition code |
 | 2 | Voice dictation | Silence timeout truncates prompt | Visual recognition state + require manual send tap |
 | 3 | Reconnection | Network switch shows no error | connectivity_plus + liveness probe on resume |
+| v2-tabs | app.dart routing | Tab switch disposes SSH sessions | Use StatefulShellRoute.indexedStack, add ref.keepAlive() in SshSession.build() |
+| v2-tabs | Riverpod autoDispose | Tab close leaks SSHClient | Call ref.invalidate(sshSessionProvider(id)) on explicit tab close |
+| v2-tabs | go_router architecture | Push route disposes all sessions | Migrate terminal to StatefulShellRoute branches before writing tab UI |
+| v2-picker | SFTP vs ls | ls parsing breaks on spaces/symlinks | Use client.sftp().listdir() — structured output, no parsing |
+| v2-picker | Session readiness | Command runs before auth complete | await client.authenticated before any exec/sftp call |
+| v2-picker | SFTP resource leak | Channel stays open after picker | try/finally sftp.close() after listdir |
+| v2-biometric | iOS | Silent crash without NSFaceIDUsageDescription | Add to Info.plist before any local_auth code |
+| v2-biometric | Android | BiometricPrompt requires FragmentActivity | Change MainActivity to extend FlutterFragmentActivity |
+| v2-biometric | Auth state | autoDispose resets lock state on nav | Use @Riverpod(keepAlive: true) for BiometricLock provider |
+| v2-biometric | Re-lock | App not re-locked on background | WidgetsBindingObserver on AppLifecycleState.hidden triggers lock |
+| v2-reconnect | Timer lifecycle | Timer fires after dispose → crash | ref.onDispose(timer.cancel) registered before timer creation |
+| v2-reconnect | Async race | State written after dispose | if (_disposed) guard after every await in build() and reconnect methods |
+| v2-reconnect | Terminal history | AsyncLoading wipes Terminal buffer | Keep Terminal alive through reconnection; use separate reconnecting state |
+| v2-reconnect | iOS background | Timers suspended while backgrounded | Design reconnection as resume-triggered, not background-continuous |
+| v2-reconnect | Riverpod 3 auto-retry | Double retry: built-in + custom | Disable Riverpod 3 auto-retry for SshSession provider |
+| v2-integration | Resume sequence | Biometric + reconnect race on resume | Sequence: lock → authenticate → reconnect; use single lifecycle observer |
+| v2-integration | Working directory | Start directory lost on reconnect | Store _startDirectory in notifier; re-apply cd after every reconnect |
 
 ---
 
 ## Sources
 
+**V1.0 Sources:**
 - dartssh2 documentation (Context7): `SSHClient` constructor, `keepAliveInterval` parameter, `SSHPtyConfig` — HIGH confidence
 - dartssh2 GitHub Issue #86 "SSHStateError(Transport is closed)": confirmed bug in transport close sequence — HIGH confidence
 - xterm.dart reference implementation (`example/lib/ssh.dart`): PTY resize pattern `terminal.onResize → session.resizeTerminal` — HIGH confidence
@@ -329,3 +799,17 @@ When calling `client.shell()`, always set `environment: {'TERM': 'xterm-256color
 - Claude Code Ink renderer (DeepWiki): EL sequences, cursor tracking, color memoization for SSH — MEDIUM confidence (architectural analysis, not official Anthropic docs)
 - Apple Developer Forums: iOS background TCP suspension behavior — HIGH confidence (platform behavior, well documented)
 - Google Auto Backup + Android Keystore mismatch: multiple flutter_secure_storage GitHub issues — HIGH confidence
+
+**V2.0 Sources:**
+- Riverpod official docs (riverpod.dev/docs/concepts2/auto_dispose): autoDispose one-frame delay, ref.keepAlive(), onCancel/onResume callbacks — HIGH confidence
+- Riverpod 3.0 changelog (riverpod.dev/docs/whats_new): TickerMode-based listener pausing, auto-retry with exponential backoff, unified Notifier interfaces — HIGH confidence
+- Riverpod GitHub Discussion #4293: autoDispose fires after first await in async providers — HIGH confidence
+- dartssh2 README (github.com/TerminalStudio/dartssh2): `client.authenticated` future, `client.run()` vs `client.shell()`, SFTP `listdir()` — HIGH confidence
+- local_auth pub.dev package page: Android SDK 24+ support, biometricOnly behavior, stickyAuth option — HIGH confidence
+- local_auth flutter/flutter GitHub Issue #108945: biometricOnly:false requiring biometric on some Android devices — MEDIUM confidence (closed as not planned, device-specific)
+- local_auth flutter/flutter GitHub Issue #112796: biometricOnly:false PIN fallback bug — MEDIUM confidence (closed as invalid)
+- Flutter AppLifecycleState API docs (api.flutter.dev): hidden/paused/inactive states, platform consistency via AppLifecycleListener — HIGH confidence
+- AppLifecycleState flutter/flutter GitHub Issue #26886: iOS vs Android paused state inconsistency — HIGH confidence
+- iOS background execution limits (appsonair.com/blogs): timers suspended, ~10s background task window — HIGH confidence (Apple platform behavior)
+- StatefulShellRoute go_router documentation (medium.com/@harshhub.414): dispose only on shell removal, IndexedStack state preservation — MEDIUM confidence (verified against flutter/flutter GitHub issues #150837, #164187)
+- local_auth Android setup (medium.com/@henryifebunandu): FlutterFragmentActivity requirement, USE_BIOMETRIC permission — HIGH confidence (consistent across multiple sources)
