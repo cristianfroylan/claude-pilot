@@ -10,45 +10,60 @@ part of 'ssh_session_provider.dart';
 // ignore_for_file: type=lint, type=warning
 /// SSH terminal session provider.
 ///
-/// Manages the full lifecycle of one SSH connection:
+/// Manages the full lifecycle of one SSH connection and its reconnection state
+/// machine:
 ///   - SSHClient (transport) and SSHSession (PTY shell)
-///   - xterm Terminal model (ANSI rendering state)
-///   - Crash-safe transport error handling (T-03-03)
-///   - Graceful cleanup on dispose (T-03-06)
+///   - xterm Terminal model (ANSI rendering state, promoted to instance field)
+///   - Initial retry loop: 5 attempts, backoff 1/2/4/8/16 seconds (RECON-01)
+///   - Mid-session retry loop: 3 attempts, backoff 2/4/8 seconds (RECON-02)
+///   - Per-second countdown via Timer.periodic exposed on SshSessionState
+///   - cancel() and reconnect() public methods (RECON-03, RECON-04)
+///   - Terminal scrollback preserved across all reconnect attempts (RECON-05)
+///   - Graceful cleanup on dispose
 ///
 /// Usage: `ref.watch(sshSessionProvider(machineId))`
-/// Returns `AsyncValue<Terminal>` — loading while connecting, error on failure.
+/// Returns `AsyncValue<SshSessionState>` — always AsyncData after first emit.
 
 @ProviderFor(SshSession)
 final sshSessionProvider = SshSessionFamily._();
 
 /// SSH terminal session provider.
 ///
-/// Manages the full lifecycle of one SSH connection:
+/// Manages the full lifecycle of one SSH connection and its reconnection state
+/// machine:
 ///   - SSHClient (transport) and SSHSession (PTY shell)
-///   - xterm Terminal model (ANSI rendering state)
-///   - Crash-safe transport error handling (T-03-03)
-///   - Graceful cleanup on dispose (T-03-06)
+///   - xterm Terminal model (ANSI rendering state, promoted to instance field)
+///   - Initial retry loop: 5 attempts, backoff 1/2/4/8/16 seconds (RECON-01)
+///   - Mid-session retry loop: 3 attempts, backoff 2/4/8 seconds (RECON-02)
+///   - Per-second countdown via Timer.periodic exposed on SshSessionState
+///   - cancel() and reconnect() public methods (RECON-03, RECON-04)
+///   - Terminal scrollback preserved across all reconnect attempts (RECON-05)
+///   - Graceful cleanup on dispose
 ///
 /// Usage: `ref.watch(sshSessionProvider(machineId))`
-/// Returns `AsyncValue<Terminal>` — loading while connecting, error on failure.
+/// Returns `AsyncValue<SshSessionState>` — always AsyncData after first emit.
 final class SshSessionProvider
-    extends $AsyncNotifierProvider<SshSession, Terminal> {
+    extends $AsyncNotifierProvider<SshSession, SshSessionState> {
   /// SSH terminal session provider.
   ///
-  /// Manages the full lifecycle of one SSH connection:
+  /// Manages the full lifecycle of one SSH connection and its reconnection state
+  /// machine:
   ///   - SSHClient (transport) and SSHSession (PTY shell)
-  ///   - xterm Terminal model (ANSI rendering state)
-  ///   - Crash-safe transport error handling (T-03-03)
-  ///   - Graceful cleanup on dispose (T-03-06)
+  ///   - xterm Terminal model (ANSI rendering state, promoted to instance field)
+  ///   - Initial retry loop: 5 attempts, backoff 1/2/4/8/16 seconds (RECON-01)
+  ///   - Mid-session retry loop: 3 attempts, backoff 2/4/8 seconds (RECON-02)
+  ///   - Per-second countdown via Timer.periodic exposed on SshSessionState
+  ///   - cancel() and reconnect() public methods (RECON-03, RECON-04)
+  ///   - Terminal scrollback preserved across all reconnect attempts (RECON-05)
+  ///   - Graceful cleanup on dispose
   ///
   /// Usage: `ref.watch(sshSessionProvider(machineId))`
-  /// Returns `AsyncValue<Terminal>` — loading while connecting, error on failure.
+  /// Returns `AsyncValue<SshSessionState>` — always AsyncData after first emit.
   SshSessionProvider._({
     required SshSessionFamily super.from,
     required String super.argument,
   }) : super(
-         retry: null,
+         retry: _noRetry,
          name: r'sshSessionProvider',
          isAutoDispose: true,
          dependencies: null,
@@ -80,31 +95,36 @@ final class SshSessionProvider
   }
 }
 
-String _$sshSessionHash() => r'3ba65a89f3f686c019a3b1250b68451f4744d96e';
+String _$sshSessionHash() => r'07d654883257ecb10f4e5a1b9702a49f67c19da6';
 
 /// SSH terminal session provider.
 ///
-/// Manages the full lifecycle of one SSH connection:
+/// Manages the full lifecycle of one SSH connection and its reconnection state
+/// machine:
 ///   - SSHClient (transport) and SSHSession (PTY shell)
-///   - xterm Terminal model (ANSI rendering state)
-///   - Crash-safe transport error handling (T-03-03)
-///   - Graceful cleanup on dispose (T-03-06)
+///   - xterm Terminal model (ANSI rendering state, promoted to instance field)
+///   - Initial retry loop: 5 attempts, backoff 1/2/4/8/16 seconds (RECON-01)
+///   - Mid-session retry loop: 3 attempts, backoff 2/4/8 seconds (RECON-02)
+///   - Per-second countdown via Timer.periodic exposed on SshSessionState
+///   - cancel() and reconnect() public methods (RECON-03, RECON-04)
+///   - Terminal scrollback preserved across all reconnect attempts (RECON-05)
+///   - Graceful cleanup on dispose
 ///
 /// Usage: `ref.watch(sshSessionProvider(machineId))`
-/// Returns `AsyncValue<Terminal>` — loading while connecting, error on failure.
+/// Returns `AsyncValue<SshSessionState>` — always AsyncData after first emit.
 
 final class SshSessionFamily extends $Family
     with
         $ClassFamilyOverride<
           SshSession,
-          AsyncValue<Terminal>,
-          Terminal,
-          FutureOr<Terminal>,
+          AsyncValue<SshSessionState>,
+          SshSessionState,
+          FutureOr<SshSessionState>,
           String
         > {
   SshSessionFamily._()
     : super(
-        retry: null,
+        retry: _noRetry,
         name: r'sshSessionProvider',
         dependencies: null,
         $allTransitiveDependencies: null,
@@ -113,14 +133,19 @@ final class SshSessionFamily extends $Family
 
   /// SSH terminal session provider.
   ///
-  /// Manages the full lifecycle of one SSH connection:
+  /// Manages the full lifecycle of one SSH connection and its reconnection state
+  /// machine:
   ///   - SSHClient (transport) and SSHSession (PTY shell)
-  ///   - xterm Terminal model (ANSI rendering state)
-  ///   - Crash-safe transport error handling (T-03-03)
-  ///   - Graceful cleanup on dispose (T-03-06)
+  ///   - xterm Terminal model (ANSI rendering state, promoted to instance field)
+  ///   - Initial retry loop: 5 attempts, backoff 1/2/4/8/16 seconds (RECON-01)
+  ///   - Mid-session retry loop: 3 attempts, backoff 2/4/8 seconds (RECON-02)
+  ///   - Per-second countdown via Timer.periodic exposed on SshSessionState
+  ///   - cancel() and reconnect() public methods (RECON-03, RECON-04)
+  ///   - Terminal scrollback preserved across all reconnect attempts (RECON-05)
+  ///   - Graceful cleanup on dispose
   ///
   /// Usage: `ref.watch(sshSessionProvider(machineId))`
-  /// Returns `AsyncValue<Terminal>` — loading while connecting, error on failure.
+  /// Returns `AsyncValue<SshSessionState>` — always AsyncData after first emit.
 
   SshSessionProvider call(String machineId) =>
       SshSessionProvider._(argument: machineId, from: this);
@@ -131,29 +156,34 @@ final class SshSessionFamily extends $Family
 
 /// SSH terminal session provider.
 ///
-/// Manages the full lifecycle of one SSH connection:
+/// Manages the full lifecycle of one SSH connection and its reconnection state
+/// machine:
 ///   - SSHClient (transport) and SSHSession (PTY shell)
-///   - xterm Terminal model (ANSI rendering state)
-///   - Crash-safe transport error handling (T-03-03)
-///   - Graceful cleanup on dispose (T-03-06)
+///   - xterm Terminal model (ANSI rendering state, promoted to instance field)
+///   - Initial retry loop: 5 attempts, backoff 1/2/4/8/16 seconds (RECON-01)
+///   - Mid-session retry loop: 3 attempts, backoff 2/4/8 seconds (RECON-02)
+///   - Per-second countdown via Timer.periodic exposed on SshSessionState
+///   - cancel() and reconnect() public methods (RECON-03, RECON-04)
+///   - Terminal scrollback preserved across all reconnect attempts (RECON-05)
+///   - Graceful cleanup on dispose
 ///
 /// Usage: `ref.watch(sshSessionProvider(machineId))`
-/// Returns `AsyncValue<Terminal>` — loading while connecting, error on failure.
+/// Returns `AsyncValue<SshSessionState>` — always AsyncData after first emit.
 
-abstract class _$SshSession extends $AsyncNotifier<Terminal> {
+abstract class _$SshSession extends $AsyncNotifier<SshSessionState> {
   late final _$args = ref.$arg as String;
   String get machineId => _$args;
 
-  FutureOr<Terminal> build(String machineId);
+  FutureOr<SshSessionState> build(String machineId);
   @$mustCallSuper
   @override
   void runBuild() {
-    final ref = this.ref as $Ref<AsyncValue<Terminal>, Terminal>;
+    final ref = this.ref as $Ref<AsyncValue<SshSessionState>, SshSessionState>;
     final element =
         ref.element
             as $ClassProviderElement<
-              AnyNotifier<AsyncValue<Terminal>, Terminal>,
-              AsyncValue<Terminal>,
+              AnyNotifier<AsyncValue<SshSessionState>, SshSessionState>,
+              AsyncValue<SshSessionState>,
               Object?,
               Object?
             >;
