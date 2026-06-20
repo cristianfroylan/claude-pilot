@@ -17,29 +17,31 @@ part 'permission_detector_provider.g.dart';
 /// carry an active Terminal (SshConnected, SshReconnecting, SshFailed), the
 /// permission stream remains live so permission prompts still surface from the
 /// scrollback even during a mid-session drop.
+///
+/// CR-02: Uses .select() to watch only the state TYPE, not the full state value.
+/// The SSH provider emits AsyncData on every countdown tick (1 Hz); watching the
+/// full state would rebuild and re-subscribe the broadcast stream on each tick,
+/// dropping permission lines during the ~0 ms subscription gap.
 @riverpod
 class PermissionDetector extends _$PermissionDetector {
   @override
   Stream<String?> build(String machineId) {
-    final sessionAsync = ref.watch(sshSessionProvider(machineId));
-    return sessionAsync.when(
-      loading: () => const Stream.empty(),
-      error: (_, __) => const Stream.empty(),
-      data: (sessionState) {
-        return switch (sessionState) {
-          // No terminal yet — suppress the permission stream until connected.
-          SshConnecting() => const Stream.empty(),
-          // All other states carry a terminal — keep the permission stream live.
-          SshConnected() ||
-          SshReconnecting() ||
-          SshFailed() =>
-            ref
-                .read(sshSessionProvider(machineId).notifier)
-                .permissionStream
-                .map(_detect),
-        };
-      },
+    // Watch only the connectivity class (whether a terminal-bearing state is active).
+    // This does NOT rebuild on every countdown tick — only when the state TYPE changes
+    // (e.g., SshConnecting→SshConnected, SshConnected→SshReconnecting).
+    final isActive = ref.watch(
+      sshSessionProvider(machineId).select((async) {
+        final s = async.value;
+        return s is SshConnected || s is SshReconnecting || s is SshFailed;
+      }),
     );
+
+    if (!isActive) return const Stream.empty();
+
+    return ref
+        .read(sshSessionProvider(machineId).notifier)
+        .permissionStream
+        .map(_detect);
   }
 
   /// Scans a stdout chunk for permission patterns.
