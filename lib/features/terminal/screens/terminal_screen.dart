@@ -8,6 +8,8 @@ import '../providers/permission_detector_provider.dart';
 import '../providers/ssh_session_provider.dart';
 import '../widgets/input_bar.dart';
 import '../widgets/permission_card.dart';
+import '../widgets/reconnect_banner.dart';
+import '../widgets/reconnect_overlay.dart';
 import '../widgets/terminal_view_wrapper.dart';
 
 /// TerminalScreen — SSH terminal view for a single machine.
@@ -42,13 +44,20 @@ class TerminalScreen extends ConsumerWidget {
     );
     final machineName = (machine?.name as String?) ?? 'Terminal';
 
-    // Transition listener: show a lightweight SnackBar when SshFailed is
-    // reached (replaces the old AlertDialog + SshSession.maxAttempts reference).
-    // Plan 04-03 adds the full reconnect overlay; this SnackBar is a minimal
-    // fallback until that plan ships.
+    // Transition listener: fire SnackBar on SshReconnecting→SshConnected (RECON-05 "Reconnected")
+    // and keep the SshFailed notification for initial-connect exhaustion. No AlertDialog.
     ref.listen(sshSessionProvider(machineId), (prev, next) {
       final prevState = prev?.value;
       final nextState = next.value;
+
+      if (prevState is SshReconnecting && nextState is SshConnected) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Reconnected'),
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
 
       if (nextState is SshFailed && prevState is! SshFailed) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -123,23 +132,84 @@ class TerminalScreen extends ConsumerWidget {
           right: false,
           child: Column(
             children: [
-              // Terminal view — expands to fill remaining space above InputBar.
-              // Switch on the sealed SshSessionState variant.
-              // Plan 04-03 adds overlay/banner widgets on top via a Stack.
+              // Terminal view with reconnection UI layers.
+              // A Stack keeps TerminalViewWrapper always mounted so xterm scrollback
+              // is never destroyed during a reconnection cycle (RECON-05).
               Expanded(
-                child: switch (sessionAsync.value) {
-                  SshConnected(:final terminal) ||
-                  SshReconnecting(:final terminal) ||
-                  SshFailed(:final terminal) =>
-                    TerminalViewWrapper(
-                      key: ValueKey(
-                          MediaQuery.of(context).viewInsets.bottom),
-                      machineId: machineId,
-                      terminal: terminal,
-                    ),
-                  SshConnecting() || null =>
-                    const Center(child: CircularProgressIndicator()),
-                },
+                child: Builder(
+                  builder: (context) {
+                    final keyboardHeight =
+                        MediaQuery.of(context).viewInsets.bottom;
+                    final sessionState = sessionAsync.value;
+
+                    // Base layer: terminal when we have one, spinner during initial connect.
+                    final Widget baseLayer = switch (sessionState) {
+                      SshConnected(:final terminal) ||
+                      SshReconnecting(:final terminal) ||
+                      SshFailed(:final terminal) =>
+                        TerminalViewWrapper(
+                          key: ValueKey(keyboardHeight),
+                          machineId: machineId,
+                          terminal: terminal,
+                        ),
+                      SshConnecting() || null =>
+                        const Center(child: CircularProgressIndicator()),
+                    };
+
+                    return Stack(
+                      children: [
+                        // Layer 1 — always present terminal (or spinner).
+                        baseLayer,
+
+                        // Layer 2 — mid-session banner pinned to top.
+                        if (sessionState
+                            case SshReconnecting(
+                              :final attempt,
+                              :final maxAttempts,
+                              :final secondsLeft,
+                            ))
+                          Positioned(
+                            top: 0,
+                            left: 0,
+                            right: 0,
+                            child: ReconnectBanner(
+                              attempt: attempt,
+                              maxAttempts: maxAttempts,
+                              secondsLeft: secondsLeft,
+                              onCancel: () => ref
+                                  .read(
+                                      sshSessionProvider(machineId).notifier)
+                                  .cancel(),
+                            ),
+                          ),
+
+                        // Layer 3 — initial-connect overlay.
+                        if (sessionState
+                            case SshConnecting(
+                              :final attempt,
+                              :final maxAttempts,
+                              :final secondsLeft,
+                            ))
+                          ReconnectOverlay(
+                            attempt: attempt,
+                            maxAttempts: maxAttempts,
+                            secondsLeft: secondsLeft,
+                            onCancel: () => ref
+                                .read(sshSessionProvider(machineId).notifier)
+                                .cancel(),
+                          ),
+
+                        // Layer 4 — failed/retry overlay.
+                        if (sessionState is SshFailed)
+                          ReconnectFailedOverlay(
+                            onRetry: () => ref
+                                .read(sshSessionProvider(machineId).notifier)
+                                .reconnect(),
+                          ),
+                      ],
+                    );
+                  },
+                ),
               ),
               // Permission card — slides in above InputBar when Claude Code shows
               // a permission prompt. AnimatedSwitcher requires distinct ValueKeys
