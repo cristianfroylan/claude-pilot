@@ -22,6 +22,8 @@ class _AddEditMachineScreenState extends ConsumerState<AddEditMachineScreen> {
   final _portCtrl = TextEditingController(text: '22');
   final _usernameCtrl = TextEditingController();
   final _passwordCtrl = TextEditingController();
+  final _folderPathCtrl = TextEditingController();
+  List<String> _folderPaths = [];
   bool _obscurePassword = true;
   bool _loaded = false;
 
@@ -32,6 +34,7 @@ class _AddEditMachineScreenState extends ConsumerState<AddEditMachineScreen> {
     _portCtrl.dispose();
     _usernameCtrl.dispose();
     _passwordCtrl.dispose();
+    _folderPathCtrl.dispose();
     super.dispose();
   }
 
@@ -43,6 +46,7 @@ class _AddEditMachineScreenState extends ConsumerState<AddEditMachineScreen> {
     _hostCtrl.text = machine.host;
     _portCtrl.text = machine.port.toString();
     _usernameCtrl.text = machine.username;
+    _folderPaths = List<String>.from(machine.folderPaths);
     // Load password from secure storage
     ref
         .read(machineProvider.notifier)
@@ -66,6 +70,7 @@ class _AddEditMachineScreenState extends ConsumerState<AddEditMachineScreen> {
       host: _hostCtrl.text.trim(),
       port: int.parse(_portCtrl.text.trim()),
       username: _usernameCtrl.text.trim(),
+      folderPaths: _folderPaths,
     );
 
     await ref
@@ -107,11 +112,21 @@ class _AddEditMachineScreenState extends ConsumerState<AddEditMachineScreen> {
     }
   }
 
+  void _addFolderPath() {
+    final path = _folderPathCtrl.text.trim();
+    if (path.isEmpty) return;
+    setState(() {
+      _folderPaths.add(path);
+      _folderPathCtrl.clear();
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     _loadExistingMachine();
 
     final isEdit = widget.machineId != null;
+    final colorScheme = Theme.of(context).colorScheme;
 
     return Scaffold(
       appBar: AppBar(
@@ -119,7 +134,7 @@ class _AddEditMachineScreenState extends ConsumerState<AddEditMachineScreen> {
           isEdit ? 'Edit Machine' : 'Add Machine',
           style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
         ),
-        backgroundColor: Theme.of(context).colorScheme.surfaceContainerHigh,
+        backgroundColor: colorScheme.surfaceContainerHigh,
         actions: isEdit
             ? [
                 Semantics(
@@ -127,7 +142,7 @@ class _AddEditMachineScreenState extends ConsumerState<AddEditMachineScreen> {
                   child: IconButton(
                     icon: Icon(
                       Icons.delete,
-                      color: Theme.of(context).colorScheme.error,
+                      color: colorScheme.error,
                     ),
                     onPressed: _deleteAndPop,
                   ),
@@ -213,6 +228,99 @@ class _AddEditMachineScreenState extends ConsumerState<AddEditMachineScreen> {
                   ),
                   validator: (v) =>
                       (v == null || v.isEmpty) ? 'Required' : null,
+                ),
+                const SizedBox(height: 16),
+                const Divider(),
+                const SizedBox(height: 8),
+                Text(
+                  'Working folders',
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        fontWeight: FontWeight.w600,
+                        color: colorScheme.onSurfaceVariant,
+                      ),
+                ),
+                const SizedBox(height: 8),
+                if (_folderPaths.isEmpty)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    child: Text(
+                      'No folders configured. Add a path to enable the session picker.',
+                      textAlign: TextAlign.center,
+                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                            color: colorScheme.onSurfaceVariant,
+                          ),
+                    ),
+                  )
+                else
+                  ReorderableListView(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    onReorder: (oldIndex, newIndex) {
+                      setState(() {
+                        if (newIndex > oldIndex) newIndex--;
+                        final item = _folderPaths.removeAt(oldIndex);
+                        _folderPaths.insert(newIndex, item);
+                      });
+                    },
+                    children: [
+                      for (int i = 0; i < _folderPaths.length; i++)
+                        Padding(
+                          key: ValueKey('folder_$i'),
+                          padding: const EdgeInsets.only(bottom: 8),
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: colorScheme.surfaceContainerHighest,
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: ListTile(
+                              leading: Semantics(
+                                label: 'Reorder',
+                                child: const Icon(Icons.drag_handle),
+                              ),
+                              title: Text(
+                                _folderPaths[i],
+                                style: const TextStyle(fontSize: 14),
+                              ),
+                              trailing: Semantics(
+                                label: 'Remove folder path',
+                                child: IconButton(
+                                  icon: Icon(
+                                    Icons.delete,
+                                    color: colorScheme.error,
+                                  ),
+                                  onPressed: () =>
+                                      setState(() => _folderPaths.removeAt(i)),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextFormField(
+                        controller: _folderPathCtrl,
+                        decoration: const InputDecoration(
+                          labelText: 'Folder path',
+                          hintText: '/home/user/projects/myapp',
+                          border: OutlineInputBorder(),
+                        ),
+                        textInputAction: TextInputAction.done,
+                        onFieldSubmitted: (_) => _addFolderPath(),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Semantics(
+                      label: 'Add folder path',
+                      child: IconButton(
+                        icon: const Icon(Icons.add),
+                        onPressed: _addFolderPath,
+                      ),
+                    ),
+                  ],
                 ),
                 const SizedBox(height: 24),
                 SizedBox(
