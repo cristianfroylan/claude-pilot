@@ -115,7 +115,23 @@ Plans:
   4. After all automatic retries are exhausted, the user can tap a "Retry" button to attempt one more connection manually
   5. After a successful reconnection, the terminal scrollback buffer is unchanged — no prior output is lost or cleared
 
-**Plans**: TBD
+**Plans**: 3 plans
+
+Plans:
+
+**Wave 1**
+
+- [ ] 04-01-PLAN.md — SshSessionState sealed class (4 variants, Terminal carried) — the contract
+
+**Wave 2** *(blocked on Wave 1 — consumes the sealed state type)*
+
+- [ ] 04-02-PLAN.md — Reconnection state machine in SshSession (retry loops, backoff, countdown, cancel/reconnect, drop detection) + update all consumers
+
+**Wave 3** *(blocked on Wave 2 — shares terminal_screen.dart, needs cancel()/reconnect())*
+
+- [ ] 04-03-PLAN.md — Reconnection UI: overlay, inline banner, Retry, Reconnected SnackBar wired via Stack
+
+**UI hint**: yes
 
 ### Phase 5: Autenticación Biométrica
 
@@ -172,7 +188,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7
 | 1. SSH Terminal | 3/3 | Complete | 2026-06-19 |
 | 2. Claude Code Remote | 3/3 | Complete | 2026-06-19 |
 | 3. Polish and Stability | 1/1 | Complete | 2026-06-19 |
-| 4. Reconexión Robusta | 0/? | Not started | - |
+| 4. Reconexión Robusta | 0/3 | Planned | - |
 | 5. Autenticación Biométrica | 0/? | Not started | - |
 | 6. Session Start Picker | 0/? | Not started | - |
 | 7. Sesiones Múltiples con Tabs | 0/? | Not started | - |
