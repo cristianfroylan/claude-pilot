@@ -14,8 +14,15 @@ part of 'permission_detector_provider.dart';
 /// detected, or null when no permission prompt is present. The null emission
 /// drives the AnimatedSwitcher to hide the PermissionCard.
 ///
-/// Detection is gated on session state — emits Stream.empty() while connecting
-/// or on error, so the card never appears when there is no active SSH session.
+/// Detection is gated on session state — emits Stream.empty() while the initial
+/// connection is in progress (SshConnecting, loading, error). For all states that
+/// carry an active Terminal (SshConnected, SshReconnecting, SshFailed), the
+/// permission stream remains live so permission prompts still surface from the
+/// scrollback even during a mid-session drop.
+///
+/// Note: the SSH provider emits AsyncData on every countdown tick (1 Hz), so this
+/// provider rebuilds on each tick. Re-subscription is lightweight; .select() is not
+/// supported on generated provider types in Riverpod 3.x / riverpod_generator 4.x.
 
 @ProviderFor(PermissionDetector)
 final permissionDetectorProvider = PermissionDetectorFamily._();
@@ -26,8 +33,15 @@ final permissionDetectorProvider = PermissionDetectorFamily._();
 /// detected, or null when no permission prompt is present. The null emission
 /// drives the AnimatedSwitcher to hide the PermissionCard.
 ///
-/// Detection is gated on session state — emits Stream.empty() while connecting
-/// or on error, so the card never appears when there is no active SSH session.
+/// Detection is gated on session state — emits Stream.empty() while the initial
+/// connection is in progress (SshConnecting, loading, error). For all states that
+/// carry an active Terminal (SshConnected, SshReconnecting, SshFailed), the
+/// permission stream remains live so permission prompts still surface from the
+/// scrollback even during a mid-session drop.
+///
+/// Note: the SSH provider emits AsyncData on every countdown tick (1 Hz), so this
+/// provider rebuilds on each tick. Re-subscription is lightweight; .select() is not
+/// supported on generated provider types in Riverpod 3.x / riverpod_generator 4.x.
 final class PermissionDetectorProvider
     extends $StreamNotifierProvider<PermissionDetector, String?> {
   /// StreamNotifier that scans terminal stdout for Claude Code permission prompts.
@@ -36,8 +50,15 @@ final class PermissionDetectorProvider
   /// detected, or null when no permission prompt is present. The null emission
   /// drives the AnimatedSwitcher to hide the PermissionCard.
   ///
-  /// Detection is gated on session state — emits Stream.empty() while connecting
-  /// or on error, so the card never appears when there is no active SSH session.
+  /// Detection is gated on session state — emits Stream.empty() while the initial
+  /// connection is in progress (SshConnecting, loading, error). For all states that
+  /// carry an active Terminal (SshConnected, SshReconnecting, SshFailed), the
+  /// permission stream remains live so permission prompts still surface from the
+  /// scrollback even during a mid-session drop.
+  ///
+  /// Note: the SSH provider emits AsyncData on every countdown tick (1 Hz), so this
+  /// provider rebuilds on each tick. Re-subscription is lightweight; .select() is not
+  /// supported on generated provider types in Riverpod 3.x / riverpod_generator 4.x.
   PermissionDetectorProvider._({
     required PermissionDetectorFamily super.from,
     required String super.argument,
@@ -75,7 +96,7 @@ final class PermissionDetectorProvider
 }
 
 String _$permissionDetectorHash() =>
-    r'7df86d1a0adefddc6398fe6a379e725ad945c12b';
+    r'5981e0b5ff2c14b0fcba1f90fe131201a9d6be78';
 
 /// StreamNotifier that scans terminal stdout for Claude Code permission prompts.
 ///
@@ -83,8 +104,15 @@ String _$permissionDetectorHash() =>
 /// detected, or null when no permission prompt is present. The null emission
 /// drives the AnimatedSwitcher to hide the PermissionCard.
 ///
-/// Detection is gated on session state — emits Stream.empty() while connecting
-/// or on error, so the card never appears when there is no active SSH session.
+/// Detection is gated on session state — emits Stream.empty() while the initial
+/// connection is in progress (SshConnecting, loading, error). For all states that
+/// carry an active Terminal (SshConnected, SshReconnecting, SshFailed), the
+/// permission stream remains live so permission prompts still surface from the
+/// scrollback even during a mid-session drop.
+///
+/// Note: the SSH provider emits AsyncData on every countdown tick (1 Hz), so this
+/// provider rebuilds on each tick. Re-subscription is lightweight; .select() is not
+/// supported on generated provider types in Riverpod 3.x / riverpod_generator 4.x.
 
 final class PermissionDetectorFamily extends $Family
     with
@@ -110,8 +138,15 @@ final class PermissionDetectorFamily extends $Family
   /// detected, or null when no permission prompt is present. The null emission
   /// drives the AnimatedSwitcher to hide the PermissionCard.
   ///
-  /// Detection is gated on session state — emits Stream.empty() while connecting
-  /// or on error, so the card never appears when there is no active SSH session.
+  /// Detection is gated on session state — emits Stream.empty() while the initial
+  /// connection is in progress (SshConnecting, loading, error). For all states that
+  /// carry an active Terminal (SshConnected, SshReconnecting, SshFailed), the
+  /// permission stream remains live so permission prompts still surface from the
+  /// scrollback even during a mid-session drop.
+  ///
+  /// Note: the SSH provider emits AsyncData on every countdown tick (1 Hz), so this
+  /// provider rebuilds on each tick. Re-subscription is lightweight; .select() is not
+  /// supported on generated provider types in Riverpod 3.x / riverpod_generator 4.x.
 
   PermissionDetectorProvider call(String machineId) =>
       PermissionDetectorProvider._(argument: machineId, from: this);
@@ -126,8 +161,15 @@ final class PermissionDetectorFamily extends $Family
 /// detected, or null when no permission prompt is present. The null emission
 /// drives the AnimatedSwitcher to hide the PermissionCard.
 ///
-/// Detection is gated on session state — emits Stream.empty() while connecting
-/// or on error, so the card never appears when there is no active SSH session.
+/// Detection is gated on session state — emits Stream.empty() while the initial
+/// connection is in progress (SshConnecting, loading, error). For all states that
+/// carry an active Terminal (SshConnected, SshReconnecting, SshFailed), the
+/// permission stream remains live so permission prompts still surface from the
+/// scrollback even during a mid-session drop.
+///
+/// Note: the SSH provider emits AsyncData on every countdown tick (1 Hz), so this
+/// provider rebuilds on each tick. Re-subscription is lightweight; .select() is not
+/// supported on generated provider types in Riverpod 3.x / riverpod_generator 4.x.
 
 abstract class _$PermissionDetector extends $StreamNotifier<String?> {
   late final _$args = ref.$arg as String;

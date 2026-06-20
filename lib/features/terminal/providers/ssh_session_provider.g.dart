@@ -95,7 +95,7 @@ final class SshSessionProvider
   }
 }
 
-String _$sshSessionHash() => r'07d654883257ecb10f4e5a1b9702a49f67c19da6';
+String _$sshSessionHash() => r'a81e1e42d591f53ff6ab352dd1bff78c8309d789';
 
 /// SSH terminal session provider.
 ///
