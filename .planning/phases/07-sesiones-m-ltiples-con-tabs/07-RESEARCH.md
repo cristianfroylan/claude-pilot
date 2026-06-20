@@ -505,22 +505,16 @@ Container(
 
 ---
 
-## Open Questions
+## Open Questions (RESOLVED)
 
-1. **go_router same-route push behavior**
-   - What we know: `context.push('/sessions?newMachineId=X')` adds to the stack even if `/sessions` is already showing (go_router push always adds)
-   - What's unclear: Whether this creates a duplicate SessionsScreen on the stack (two instances of `/sessions`), which would break the single-sessions-screen invariant
-   - Recommendation: Use the alternative pattern — machine list calls `ref.read(sessionsProvider.notifier).openTab(machineId)` directly (the provider is globally accessible), then `context.go('/sessions')` (which replaces current location if already there). This is architecturally cleaner: the notifier is the authority for tab creation, not the router. The planner should choose this approach.
+1. **go_router same-route push behavior** — RESOLVED
+   - Resolution: Use alternative pattern — machine list calls `ref.read(sessionsProvider.notifier).openTab(machineId)` directly, then `context.push('/sessions')` (no query param). The notifier is the authority for tab creation. Implemented in 07-02 Task 3 Change C2.
 
-2. **TerminalScreen AppBar removal scope**
-   - What we know: The UI-SPEC places the AppBar at the SessionsScreen level, with the tab strip replacing the per-session AppBar
-   - What's unclear: Whether to remove TerminalScreen's existing AppBar entirely or wrap it with a flag
-   - Recommendation: Remove the AppBar from TerminalScreen entirely. It's simpler and the SessionsScreen AppBar handles context. Add a comment noting the widget is now designed to be embedded in SessionsScreen only.
+2. **TerminalScreen AppBar removal scope** — RESOLVED
+   - Resolution: Remove AppBar from TerminalScreen entirely. SessionsScreen AppBar handles context. Implemented in 07-02 Task 3 Change A3.
 
-3. **Pending Phase 5 plans in ROADMAP (05-02, 05-03 shown as unchecked)**
-   - What we know: Phase 5 has 3 SUMMARY files (all plans executed). The ROADMAP checkbox format shows Phase 5 plans as `[ ]` but SUMMARY files confirm execution.
-   - What's unclear: Whether Phase 5 is truly complete or ROADMAP is stale
-   - Recommendation: Treat Phase 5 as complete based on SUMMARY files and the presence of `requireBiometric()` in `machine_list_screen.dart` and `biometricAuthProvider` in `app.dart`. The ROADMAP is stale on those checkboxes.
+3. **Pending Phase 5 plans in ROADMAP (05-02, 05-03 shown as unchecked)** — RESOLVED (informational)
+   - Resolution: Phase 5 is complete based on SUMMARY files and presence of `requireBiometric()` in `machine_list_screen.dart` and `biometricAuthProvider` in `app.dart`. ROADMAP checkboxes are stale. No action needed.
 
 ---
 
