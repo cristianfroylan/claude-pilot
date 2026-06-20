@@ -23,7 +23,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 ### v2.0 — Power User Features (Phases 4–7)
 
-- [ ] **Phase 4: Reconexión Robusta** - Exponential backoff reconnection with inline banner, attempt counter, and Terminal scrollback preservation
+- [x] **Phase 4: Reconexión Robusta** - Exponential backoff reconnection with inline banner, attempt counter, and Terminal scrollback preservation (completed 2026-06-20)
 - [ ] **Phase 5: Autenticación Biométrica** - Face ID/fingerprint app lock on cold launch and machine edit/delete, with background re-lock
 - [ ] **Phase 6: Session Start Picker** - Per-machine working folder configuration and project picker sheet after SSH connects
 - [ ] **Phase 7: Sesiones Múltiples con Tabs** - Independent SSH sessions per tab with dynamic tab strip, keepAlive session lifecycle, and isolated failure handling
@@ -129,7 +129,7 @@ Plans:
 
 **Wave 3** *(blocked on Wave 2 — shares terminal_screen.dart, needs cancel()/reconnect())*
 
-- [ ] 04-03-PLAN.md — Reconnection UI: overlay, inline banner, Retry, Reconnected SnackBar wired via Stack
+- [x] 04-03-PLAN.md — Reconnection UI: overlay, inline banner, Retry, Reconnected SnackBar wired via Stack
 
 **UI hint**: yes
 
@@ -188,7 +188,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7
 | 1. SSH Terminal | 3/3 | Complete | 2026-06-19 |
 | 2. Claude Code Remote | 3/3 | Complete | 2026-06-19 |
 | 3. Polish and Stability | 1/1 | Complete | 2026-06-19 |
-| 4. Reconexión Robusta | 2/3 | In Progress|  |
+| 4. Reconexión Robusta | 3/3 | Complete   | 2026-06-20 |
 | 5. Autenticación Biométrica | 0/? | Not started | - |
 | 6. Session Start Picker | 0/? | Not started | - |
 | 7. Sesiones Múltiples con Tabs | 0/? | Not started | - |
