@@ -145,7 +145,19 @@ Plans:
   3. If the app is sent to background and returns after more than 10 minutes, the lock screen reappears and requires re-authentication
   4. On a device with no biometric hardware enrolled, the OS PIN/password prompt appears automatically as fallback — no additional code path or degraded UI is shown
 
-**Plans**: TBD
+**Plans**: 3 plans
+
+Plans:
+
+**Wave 1**
+
+- [ ] 05-01-PLAN.md — Platform prerequisites + BiometricAuth provider (pubspec, Android FlutterFragmentActivity + USE_BIOMETRIC, iOS NSFaceIDUsageDescription, Riverpod keepAlive Notifier<bool>)
+
+**Wave 2** *(blocked on Wave 1 — consumes biometricAuthProvider and local_auth package)*
+
+- [ ] 05-02-PLAN.md — App root auth gate + LockScreen (app.dart ConsumerStatefulWidget, AppLifecycleListener 10-min timeout, LockScreen auto-trigger)
+- [ ] 05-03-PLAN.md — Edit/delete auth gate (requireBiometric() utility, machine_list_screen.dart guard on onEdit/onDelete)
+
 **UI hint**: yes
 
 ### Phase 6: Session Start Picker
@@ -189,6 +201,6 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7
 | 2. Claude Code Remote | 3/3 | Complete | 2026-06-19 |
 | 3. Polish and Stability | 1/1 | Complete | 2026-06-19 |
 | 4. Reconexión Robusta | 3/3 | Complete   | 2026-06-20 |
-| 5. Autenticación Biométrica | 0/? | Not started | - |
+| 5. Autenticación Biométrica | 0/3 | Not started | - |
 | 6. Session Start Picker | 0/? | Not started | - |
 | 7. Sesiones Múltiples con Tabs | 0/? | Not started | - |
