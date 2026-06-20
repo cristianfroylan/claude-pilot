@@ -10,6 +10,7 @@ import '../widgets/input_bar.dart';
 import '../widgets/permission_card.dart';
 import '../widgets/reconnect_banner.dart';
 import '../widgets/reconnect_overlay.dart';
+import '../widgets/session_picker_sheet.dart';
 import '../widgets/terminal_view_wrapper.dart';
 
 /// TerminalScreen — SSH terminal view for a single machine.
@@ -21,32 +22,42 @@ import '../widgets/terminal_view_wrapper.dart';
 /// (SshConnected, SshReconnecting, SshFailed) render TerminalViewWrapper to
 /// keep the xterm PTY mounted and scrollback preserved (RECON-05).
 /// Plan 04-03 will add overlay/banner widgets on top of this via a Stack.
-class TerminalScreen extends ConsumerWidget {
+class TerminalScreen extends ConsumerStatefulWidget {
   final String machineId;
 
   const TerminalScreen({super.key, required this.machineId});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final sessionAsync = ref.watch(sshSessionProvider(machineId));
+  ConsumerState<TerminalScreen> createState() => _TerminalScreenState();
+}
+
+class _TerminalScreenState extends ConsumerState<TerminalScreen> {
+  // PICK-01: guard prevents picker from re-appearing on mid-session reconnect
+  // (Pitfall 1 in RESEARCH.md). Reset only when ConsumerState is reconstructed
+  // (i.e., user navigates away and opens a new session).
+  bool _pickerShown = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final sessionAsync = ref.watch(sshSessionProvider(widget.machineId));
 
     // Watch the permission detector — emits the matched line or null.
     // Use .asData?.value — .valueOrNull is not available in the installed Riverpod version.
     final permissionLine =
-        ref.watch(permissionDetectorProvider(machineId)).asData?.value;
+        ref.watch(permissionDetectorProvider(widget.machineId)).asData?.value;
 
     // Retrieve machine metadata for display name.
     // Uses .value (nullable) — valueOrNull not available in installed Riverpod version.
     final machines = ref.watch(machineProvider).value;
     final machine = machines?.cast<dynamic>().firstWhere(
-      (m) => m.id == machineId,
+      (m) => m.id == widget.machineId,
       orElse: () => null,
     );
     final machineName = (machine?.name as String?) ?? 'Terminal';
 
     // Transition listener: fire SnackBar on SshReconnecting→SshConnected (RECON-05 "Reconnected")
     // and keep the SshFailed notification for initial-connect exhaustion. No AlertDialog.
-    ref.listen(sshSessionProvider(machineId), (prev, next) {
+    ref.listen(sshSessionProvider(widget.machineId), (prev, next) {
       final prevState = prev?.value;
       final nextState = next.value;
 
@@ -63,6 +74,38 @@ class TerminalScreen extends ConsumerWidget {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Could not connect to $machineName.')),
         );
+      }
+
+      // PICK-01 / PICK-04: Show folder picker on FIRST SshConnected transition only.
+      // _pickerShown guard prevents re-showing on mid-session reconnect (Pitfall 1 in RESEARCH.md).
+      if (!_pickerShown && nextState is SshConnected) {
+        _pickerShown = true;
+        final allMachines = ref.read(machineProvider).value;
+        final pickerMachine = allMachines?.cast<dynamic>().firstWhere(
+          (m) => m.id == widget.machineId,
+          orElse: () => null,
+        );
+        final paths = pickerMachine?.folderPaths as List<String>?;
+        if (paths != null && paths.isNotEmpty) {
+          // addPostFrameCallback prevents "setState during build" assertion (Pitfall 2 in RESEARCH.md).
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (!mounted) return;
+            showModalBottomSheet<void>(
+              context: context,
+              isDismissible: false,
+              enableDrag: false,
+              backgroundColor: Theme.of(context).colorScheme.surface,
+              builder: (_) => SessionPickerSheet(
+                folderPaths: paths,
+                onFolderSelected: (path) {
+                  ref
+                      .read(sshSessionProvider(widget.machineId).notifier)
+                      .sendText('cd $path\n');
+                },
+              ),
+            );
+          });
+        }
       }
     });
 
@@ -149,7 +192,7 @@ class TerminalScreen extends ConsumerWidget {
                       SshFailed(:final terminal) =>
                         TerminalViewWrapper(
                           key: ValueKey(keyboardHeight),
-                          machineId: machineId,
+                          machineId: widget.machineId,
                           terminal: terminal,
                         ),
                       SshConnecting() || null =>
@@ -178,7 +221,7 @@ class TerminalScreen extends ConsumerWidget {
                               secondsLeft: secondsLeft,
                               onCancel: () => ref
                                   .read(
-                                      sshSessionProvider(machineId).notifier)
+                                      sshSessionProvider(widget.machineId).notifier)
                                   .cancel(),
                             ),
                           ),
@@ -195,7 +238,7 @@ class TerminalScreen extends ConsumerWidget {
                             maxAttempts: maxAttempts,
                             secondsLeft: secondsLeft,
                             onCancel: () => ref
-                                .read(sshSessionProvider(machineId).notifier)
+                                .read(sshSessionProvider(widget.machineId).notifier)
                                 .cancel(),
                           ),
 
@@ -203,7 +246,7 @@ class TerminalScreen extends ConsumerWidget {
                         if (sessionState is SshFailed)
                           ReconnectFailedOverlay(
                             onRetry: () => ref
-                                .read(sshSessionProvider(machineId).notifier)
+                                .read(sshSessionProvider(widget.machineId).notifier)
                                 .reconnect(),
                           ),
                       ],
@@ -219,13 +262,13 @@ class TerminalScreen extends ConsumerWidget {
                 child: permissionLine != null
                     ? PermissionCard(
                         key: const ValueKey('permission-card'),
-                        machineId: machineId,
+                        machineId: widget.machineId,
                         line: permissionLine,
                       )
                     : const SizedBox.shrink(key: ValueKey('no-card')),
               ),
               // InputBar — always rendered; its controls disable when not connected.
-              InputBar(machineId: machineId),
+              InputBar(machineId: widget.machineId),
             ],
           ),
         ),
