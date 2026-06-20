@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../auth/utils/biometric_guard.dart';
 import '../providers/machines_provider.dart';
 import '../widgets/machine_list_tile.dart';
 
@@ -31,11 +32,18 @@ class MachineListScreen extends ConsumerWidget {
                   machine: machines[i],
                   onTap: () =>
                       context.push('/machines/${machines[i].id}/terminal'),
-                  onEdit: () =>
-                      context.push('/machines/${machines[i].id}/edit'),
-                  onDelete: () => ref
-                      .read(machineProvider.notifier)
-                      .delete(machines[i].id),
+                  onEdit: () async {
+                    final ok = await requireBiometric();
+                    if (ok && context.mounted) {
+                      context.push('/machines/${machines[i].id}/edit');
+                    }
+                  },
+                  onDelete: () async {
+                    final ok = await requireBiometric();
+                    if (ok) {
+                      ref.read(machineProvider.notifier).delete(machines[i].id);
+                    }
+                  },
                 ),
               ),
       ),
