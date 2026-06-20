@@ -255,8 +255,8 @@ class _InputBarState extends ConsumerState<InputBar> {
                     : null,
                 icon: Icon(
                   _commandsVisible
-                      ? Icons.expand_more
-                      : Icons.expand_less,
+                      ? Icons.expand_less  // panel open → tap to collapse
+                      : Icons.expand_more, // panel closed → tap to expand
                   size: 16,
                 ),
                 label: const Text('Command',
