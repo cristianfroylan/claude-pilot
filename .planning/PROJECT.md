@@ -8,30 +8,45 @@ App móvil Flutter que funciona como control remoto para Claude Code sobre la re
 
 Enviar un prompt a Claude Code desde el teléfono y ver la respuesta llegar — sin abrir la laptop.
 
+## Current Milestone: v2.0 Power User Features
+
+**Goal:** Hacer la app utilizable como herramienta diaria sin fricción — sesiones múltiples con tabs, proyectos rápidos, seguridad biométrica al abrir la app y al editar máquinas, y reconexión robusta.
+
+**Target features:**
+- Múltiples sesiones SSH simultáneas con navegación por pestañas (estilo Chrome mobile)
+- Session start picker: sesión en blanco o cargar proyecto (lista de carpetas configurables por máquina, `ls` al conectar, `cd` al seleccionar)
+- Autenticación biométrica (Face ID / huella) al abrir la app y al editar máquinas guardadas
+- Reconexión automática con backoff y UI de progreso/cancelar al fallar conexión inicial o caída mid-session
+
 ## Requirements
 
 ### Validated
 
-(None yet — ship to validate)
+- ✓ Usuario puede agregar, listar y eliminar máquinas — v1.0 Phase 1
+- ✓ Usuario puede conectarse a una máquina vía SSH y ver el estado de conexión — v1.0 Phase 1
+- ✓ Usuario ve el output de Claude Code en tiempo real con colores ANSI fieles — v1.0 Phase 1
+- ✓ Usuario puede escribir un prompt y enviarlo a la terminal — v1.0 Phase 1
+- ✓ Usuario puede dictar un prompt por voz, revisarlo y enviarlo — v1.0 Phase 2
+- ✓ Usuario puede ejecutar comandos rápidos (Ctrl+C, /clear, /gsd, cd ~, etc.) con un tap — v1.0 Phase 2
+- ✓ Usuario puede aprobar o rechazar acciones que Claude solicita permiso — v1.0 Phase 2
+- ✓ SSH keepalive, PTY resize robusto, SafeArea iOS — v1.0 Phase 3
 
 ### Active
 
-- [ ] Usuario puede agregar, listar y eliminar máquinas (nombre, IP, puerto, usuario, contraseña)
-- [ ] Usuario puede conectarse a una máquina vía SSH y ver el estado de conexión
-- [ ] Usuario ve el output de Claude Code en tiempo real con colores ANSI fieles
-- [ ] Usuario puede escribir un prompt y enviarlo a la terminal
-- [ ] Usuario puede dictar un prompt por voz, revisarlo y enviarlo
-- [ ] Usuario puede ejecutar comandos rápidos (Ctrl+C, /clear, /gsd, cd ~, etc.) con un tap
-- [ ] Usuario puede aprobar o rechazar acciones que Claude solicita permiso
-- [ ] Usuario puede navegar el historial de comandos (↑↓)
+- [ ] Usuario puede tener múltiples sesiones SSH abiertas simultáneamente y navegar entre ellas con tabs
+- [ ] Al iniciar una nueva sesión, el usuario puede elegir empezar en blanco o cargar un proyecto
+- [ ] Usuario puede configurar una lista de carpetas de trabajo por máquina
+- [ ] La app requiere autenticación biométrica al lanzarse (Face ID / huella / PIN)
+- [ ] La app requiere autenticación biométrica al editar credenciales de una máquina guardada
+- [ ] La app reintenta la conexión automáticamente con backoff y muestra progreso al usuario
+- [ ] El usuario puede cancelar reintentos o forzar uno manualmente
 
 ### Out of Scope
 
 - Transferencia de archivos (SFTP) — fuera del concepto "control remoto"
 - Editor de código en el teléfono — la computadora es quien edita
-- Notificaciones push — v2
-- Múltiples sesiones simultáneas abiertas — v2
-- Acceso fuera de la red local (VPN, tunnel) — v2
+- Notificaciones push — v3
+- Acceso fuera de la red local (VPN, tunnel) — v3
 - Llaves SSH con passphrase — v1 solo soporta usuario/contraseña
 
 ## Context
@@ -78,4 +93,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-06-19 after initialization from SPEC.md*
+*Last updated: 2026-06-20 after milestone v2.0 start*

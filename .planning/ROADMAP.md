@@ -4,6 +4,8 @@
 
 Three phases deliver a Flutter SSH remote control for Claude Code. Phase 1 establishes a working SSH terminal — machines, connection, real terminal rendering, basic input. Phase 2 adds the features that make claude-pilot a Claude Code remote rather than a generic SSH client: quick commands, voice dictation, and permission approval cards. Phase 3 hardens the app for real-world daily use — stability under connection loss, PTY edge cases, iOS background behavior, and visual polish.
 
+v2.0 (Phases 4–7) extends the working foundation with power-user features: robust reconnection with exponential backoff, biometric app lock, a session start picker for configured project folders, and multi-session tab navigation.
+
 ## Phases
 
 **Phase Numbering:**
@@ -13,9 +15,18 @@ Three phases deliver a Flutter SSH remote control for Claude Code. Phase 1 estab
 
 Decimal phases appear between their surrounding integers in numeric order.
 
+### v1.0 — Core Remote Control (Phases 1–3)
+
 - [x] **Phase 1: SSH Terminal** - Working SSH connection with real ANSI terminal and basic text input (completed 2026-06-19)
 - [x] **Phase 2: Claude Code Remote** - Quick commands panel, voice dictation, and permission approval cards (completed 2026-06-19)
 - [x] **Phase 3: Polish and Stability** - PTY resize hardening, iOS keepAlive, connection robustness, visual polish (completed 2026-06-19)
+
+### v2.0 — Power User Features (Phases 4–7)
+
+- [ ] **Phase 4: Reconexión Robusta** - Exponential backoff reconnection with inline banner, attempt counter, and Terminal scrollback preservation
+- [ ] **Phase 5: Autenticación Biométrica** - Face ID/fingerprint app lock on cold launch and machine edit/delete, with background re-lock
+- [ ] **Phase 6: Session Start Picker** - Per-machine working folder configuration and project picker sheet after SSH connects
+- [ ] **Phase 7: Sesiones Múltiples con Tabs** - Independent SSH sessions per tab with dynamic tab strip, keepAlive session lifecycle, and isolated failure handling
 
 ## Phase Details
 
@@ -88,16 +99,80 @@ Plans:
   2. SSH session remains alive after the app is backgrounded on iOS for at least 30 seconds and resumes without a manual reconnect
   3. Visual appearance is consistent: dark background, monospace font, readable on both Android and iOS without layout overflows or rendering glitches
 
+**Plans**: 1/1 plans complete
+**UI hint**: yes
+
+### Phase 4: Reconexión Robusta
+
+**Goal**: Users never lose work to a dropped connection — the app retries automatically with visible progress and preserves the terminal scrollback buffer throughout
+**Depends on**: Phase 3
+**Requirements**: RECON-01, RECON-02, RECON-03, RECON-04, RECON-05
+**Success Criteria** (what must be TRUE):
+
+  1. When the initial SSH connection fails, the user sees a retry counter and countdown timer (e.g. "Attempt 2/5 — retrying in 4s") without any manual action
+  2. When a mid-session connection drops, an inline banner appears in the terminal view showing reconnection progress — the terminal history (scrollback) remains visible and intact throughout
+  3. The user can tap a Cancel button at any point during automatic retries to stop the retry loop immediately
+  4. After all automatic retries are exhausted, the user can tap a "Retry" button to attempt one more connection manually
+  5. After a successful reconnection, the terminal scrollback buffer is unchanged — no prior output is lost or cleared
+
+**Plans**: TBD
+
+### Phase 5: Autenticación Biométrica
+
+**Goal**: The app is protected by the device's biometric or PIN authentication so unattended devices cannot expose SSH credentials or active sessions
+**Depends on**: Phase 4
+**Requirements**: BIO-01, BIO-02, BIO-03, BIO-04
+**Success Criteria** (what must be TRUE):
+
+  1. On cold launch, the user sees a lock screen and must authenticate with Face ID, fingerprint, or device PIN before reaching the machine list
+  2. Before editing or deleting a saved machine's credentials, the user must re-authenticate biometrically — the edit form does not open until authentication succeeds
+  3. If the app is sent to background and returns after more than 10 minutes, the lock screen reappears and requires re-authentication
+  4. On a device with no biometric hardware enrolled, the OS PIN/password prompt appears automatically as fallback — no additional code path or degraded UI is shown
+
+**Plans**: TBD
+**UI hint**: yes
+
+### Phase 6: Session Start Picker
+
+**Goal**: Users can land in the right project directory immediately after connecting — no manual `cd` required
+**Depends on**: Phase 5
+**Requirements**: PICK-01, PICK-02, PICK-03, PICK-04
+**Success Criteria** (what must be TRUE):
+
+  1. When editing a machine, the user can add, reorder, and delete a list of working folder paths that are saved per machine
+  2. After an SSH session connects (shell is ready), a picker sheet appears showing the configured folders; tapping a folder closes the sheet and the terminal immediately reflects the `cd <path>` command having been sent
+  3. The user can dismiss the picker with a "Start blank" option to enter the session without any `cd` command
+  4. If a machine has no configured folders, the session starts in blank mode directly — the picker sheet never appears
+
+**Plans**: TBD
+**UI hint**: yes
+
+### Phase 7: Sesiones Múltiples con Tabs
+
+**Goal**: Users can run multiple independent Claude Code sessions simultaneously and switch between them without losing output or triggering reconnections
+**Depends on**: Phase 6
+**Requirements**: SESS-01, SESS-02, SESS-03, SESS-04
+**Success Criteria** (what must be TRUE):
+
+  1. The user can open a second SSH session (same or different machine) while the first remains active and connected — both sessions run independently with separate xterm buffers
+  2. A tab strip is always visible with each tab showing the machine name; tapping a tab switches the terminal view without disconnecting or clearing the other session
+  3. Each tab has a close button; tapping it disconnects that session's SSH cleanly and removes the tab — other tabs and their sessions are unaffected
+  4. If a session in one tab drops, that tab shows a red error indicator and the last visible terminal output — all other tabs continue operating normally
+
 **Plans**: TBD
 **UI hint**: yes
 
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 1 → 2 → 3
+Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. SSH Terminal | 3/3 | Complete   | 2026-06-19 |
-| 2. Claude Code Remote | 3/3 | Complete   | 2026-06-19 |
-| 3. Polish and Stability | 1/1 | Complete   | 2026-06-19 |
+| 1. SSH Terminal | 3/3 | Complete | 2026-06-19 |
+| 2. Claude Code Remote | 3/3 | Complete | 2026-06-19 |
+| 3. Polish and Stability | 1/1 | Complete | 2026-06-19 |
+| 4. Reconexión Robusta | 0/? | Not started | - |
+| 5. Autenticación Biométrica | 0/? | Not started | - |
+| 6. Session Start Picker | 0/? | Not started | - |
+| 7. Sesiones Múltiples con Tabs | 0/? | Not started | - |
