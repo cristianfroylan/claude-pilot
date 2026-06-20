@@ -55,12 +55,20 @@ class PermissionDetector extends _$PermissionDetector {
     for (final line in lines.reversed) {
       final trimmed = line.trim();
       if (trimmed.isNotEmpty && pattern.hasMatch(trimmed)) {
-        if (trimmed.length > 80) {
-          return '${trimmed.substring(0, 77)}...';
-        }
-        return trimmed;
+        return _truncate(trimmed, 80);
       }
     }
     return null;
+  }
+
+  /// Truncates [s] to at most [maxChars] Unicode code points (runes), appending
+  /// '...' if truncated. Uses runes instead of String.length (UTF-16 code units)
+  /// to avoid splitting surrogate pairs when [s] contains emoji or supplementary
+  /// CJK characters.
+  String _truncate(String s, int maxChars) {
+    final runes = s.runes.toList();
+    if (runes.length <= maxChars) return s;
+    // Reserve 3 chars for the ellipsis.
+    return String.fromCharCodes(runes.take(maxChars - 3)) + '...';
   }
 }
