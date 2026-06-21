@@ -62,7 +62,7 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen> {
       final prevState = prev?.value;
       final nextState = next.value;
 
-      if (prevState is SshReconnecting && nextState is SshConnected) {
+      if (widget.isActive && prevState is SshReconnecting && nextState is SshConnected) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Reconnected'),
@@ -229,56 +229,3 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen> {
   }
 }
 
-/// Animated dot that oscillates opacity 1.0 ↔ 0.4 while SSH is connecting.
-///
-/// Implements the "animated dot" specified in UI-SPEC.md interaction contract.
-/// Uses AnimationController with repeat(reverse: true) for a smooth pulse.
-///
-/// _ConnectingDot is retained for use by sessions_screen.dart's _PulsingDot
-/// (same animation pattern, parameterized by color).
-class _ConnectingDot extends StatefulWidget {
-  const _ConnectingDot();
-
-  @override
-  State<_ConnectingDot> createState() => _ConnectingDotState();
-}
-
-class _ConnectingDotState extends State<_ConnectingDot>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _controller;
-  late final Animation<double> _opacity;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = AnimationController(
-      duration: const Duration(milliseconds: 800),
-      vsync: this,
-    )..repeat(reverse: true);
-    _opacity = Tween<double>(begin: 1.0, end: 0.4).animate(_controller);
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: _opacity,
-      builder: (context, _) => Opacity(
-        opacity: _opacity.value,
-        child: Container(
-          width: 8,
-          height: 8,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: Theme.of(context).colorScheme.primary,
-          ),
-        ),
-      ),
-    );
-  }
-}

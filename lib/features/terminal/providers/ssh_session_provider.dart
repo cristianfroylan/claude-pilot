@@ -411,7 +411,9 @@ class SshSession extends _$SshSession {
   void closeAndDispose() {
     cancel(); // sets _cancelRequested = true, stops _countdownTimer
     _sshSession?.close();
+    _sshSession = null;
     _client?.close();
+    _client = null;
     _releaseKeepAlive?.call(); // allows Riverpod autoDispose to fire, triggering ref.onDispose()
     _releaseKeepAlive = null;
   }
