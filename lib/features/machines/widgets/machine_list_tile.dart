@@ -18,6 +18,12 @@ class MachineListTile extends ConsumerWidget {
     required this.onDelete,
   });
 
+  static IconData _platformIcon(RemotePlatform platform) => switch (platform) {
+        RemotePlatform.linux => Icons.terminal,
+        RemotePlatform.macos => Icons.laptop_mac,
+        RemotePlatform.windows => Icons.desktop_windows,
+      };
+
   Future<bool?> _confirmDelete(BuildContext context) {
     return showDialog<bool>(
       context: context,
@@ -74,13 +80,24 @@ class MachineListTile extends ConsumerWidget {
       confirmDismiss: (_) => _confirmDelete(context),
       onDismissed: (_) => onDelete(),
       child: ListTile(
-        leading: Container(
-          width: 12,
-          height: 12,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: dotColor,
-          ),
+        leading: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              _platformIcon(machine.platform),
+              size: 20,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
+            const SizedBox(height: 3),
+            Container(
+              width: 8,
+              height: 8,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: dotColor,
+              ),
+            ),
+          ],
         ),
         title: Text(
           machine.name,

@@ -24,6 +24,7 @@ class _AddEditMachineScreenState extends ConsumerState<AddEditMachineScreen> {
   final _passwordCtrl = TextEditingController();
   final _folderPathCtrl = TextEditingController();
   List<String> _folderPaths = [];
+  RemotePlatform _platform = RemotePlatform.linux;
   bool _obscurePassword = true;
   bool _loaded = false;
 
@@ -47,6 +48,7 @@ class _AddEditMachineScreenState extends ConsumerState<AddEditMachineScreen> {
     _portCtrl.text = machine.port.toString();
     _usernameCtrl.text = machine.username;
     _folderPaths = List<String>.from(machine.folderPaths);
+    _platform = machine.platform;
     // Load password from secure storage
     ref
         .read(machineProvider.notifier)
@@ -71,6 +73,7 @@ class _AddEditMachineScreenState extends ConsumerState<AddEditMachineScreen> {
       port: int.parse(_portCtrl.text.trim()),
       username: _usernameCtrl.text.trim(),
       folderPaths: _folderPaths,
+      platform: _platform,
     );
 
     await ref
@@ -167,6 +170,42 @@ class _AddEditMachineScreenState extends ConsumerState<AddEditMachineScreen> {
                   ),
                   validator: (v) =>
                       (v == null || v.trim().isEmpty) ? 'Required' : null,
+                ),
+                const SizedBox(height: 16),
+                // Platform selector — drives shell commands and path hints.
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Platform',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: colorScheme.onSurfaceVariant,
+                          ),
+                    ),
+                    const SizedBox(height: 8),
+                    SegmentedButton<RemotePlatform>(
+                      segments: const [
+                        ButtonSegment(
+                          value: RemotePlatform.linux,
+                          label: Text('Linux'),
+                          icon: Icon(Icons.terminal, size: 16),
+                        ),
+                        ButtonSegment(
+                          value: RemotePlatform.macos,
+                          label: Text('macOS'),
+                          icon: Icon(Icons.laptop_mac, size: 16),
+                        ),
+                        ButtonSegment(
+                          value: RemotePlatform.windows,
+                          label: Text('Windows'),
+                          icon: Icon(Icons.desktop_windows, size: 16),
+                        ),
+                      ],
+                      selected: {_platform},
+                      onSelectionChanged: (selection) =>
+                          setState(() => _platform = selection.first),
+                    ),
+                  ],
                 ),
                 const SizedBox(height: 16),
                 TextFormField(
@@ -303,10 +342,10 @@ class _AddEditMachineScreenState extends ConsumerState<AddEditMachineScreen> {
                     Expanded(
                       child: TextFormField(
                         controller: _folderPathCtrl,
-                        decoration: const InputDecoration(
+                        decoration: InputDecoration(
                           labelText: 'Folder path',
-                          hintText: '/home/user/projects/myapp',
-                          border: OutlineInputBorder(),
+                          hintText: _platform.pathHint,
+                          border: const OutlineInputBorder(),
                         ),
                         textInputAction: TextInputAction.done,
                         onFieldSubmitted: (_) => _addFolderPath(),

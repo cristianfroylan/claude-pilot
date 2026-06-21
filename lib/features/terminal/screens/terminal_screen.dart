@@ -99,9 +99,10 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen> {
               builder: (_) => SessionPickerSheet(
                 folderPaths: paths,
                 onFolderSelected: (path) {
+                  final cmd = pickerMachine?.platform.cdCommand(path) ?? 'cd "$path"';
                   ref
                       .read(sshSessionProvider(widget.machineId).notifier)
-                      .sendText('cd $path\n');
+                      .sendText('$cmd\n');
                 },
               ),
             );
