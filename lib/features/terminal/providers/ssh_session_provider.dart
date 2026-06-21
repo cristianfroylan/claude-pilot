@@ -35,6 +35,8 @@ Duration? _noRetry(int retryCount, Object error) => null;
 /// Returns `AsyncValue<SshSessionState>` — always AsyncData after first emit.
 @Riverpod(retry: _noRetry)
 class SshSession extends _$SshSession {
+  // ignore: unused_field  — tabId makes each tab an independent provider instance
+  // even when two tabs connect to the same machine (SESS-TAB-01).
   SSHClient? _client;
 
   // SSHSession from dartssh2 — distinct from this Riverpod class `SshSession`
@@ -78,7 +80,7 @@ class SshSession extends _$SshSession {
   static const _midSessionBackoff = [2, 4, 8]; // seconds
 
   @override
-  Future<SshSessionState> build(String machineId) async {
+  Future<SshSessionState> build(String machineId, String tabId) async {
     // Prevent autoDispose from firing during IndexedStack tab switches (Phase 7 SESS-01/03).
     // SessionsNotifier.closeTab() calls closeAndDispose() → _releaseKeepAlive() to allow disposal.
     // Must be the very first call — before any await and before ref.onDispose — to avoid
@@ -416,6 +418,32 @@ class SshSession extends _$SshSession {
     _client = null;
     _releaseKeepAlive?.call(); // allows Riverpod autoDispose to fire, triggering ref.onDispose()
     _releaseKeepAlive = null;
+  }
+
+  /// List direct subdirectory names inside [basePath] via a non-PTY exec
+  /// channel — completely invisible to the terminal widget (SESS-TAB-01).
+  /// Returns an empty list on error or when no subdirectories exist.
+  Future<List<String>> listFolders(String basePath) async {
+    final client = _client;
+    if (client == null) return [];
+    final machine = ref.read(machineProvider.notifier).get(machineId);
+    if (machine == null) return [];
+    try {
+      final session = await client.execute(machine.platform.lsCommand(basePath));
+      final output = await session.stdout
+          .cast<List<int>>()
+          .transform(const Utf8Decoder(allowMalformed: true))
+          .join();
+      session.close();
+      return output
+          .trim()
+          .split('\n')
+          .map((l) => l.trim())
+          .where((l) => l.isNotEmpty)
+          .toList();
+    } catch (_) {
+      return [];
+    }
   }
 
   /// Send a text command to the remote shell (InputBar "Send" button).

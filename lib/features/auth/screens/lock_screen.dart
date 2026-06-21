@@ -13,6 +13,7 @@ class LockScreen extends ConsumerStatefulWidget {
 
 class _LockScreenState extends ConsumerState<LockScreen> {
   bool _authFailed = false;
+  String? _errorDetail;
 
   @override
   void initState() {
@@ -22,20 +23,28 @@ class _LockScreenState extends ConsumerState<LockScreen> {
   }
 
   Future<void> _authenticate() async {
+    setState(() { _authFailed = false; _errorDetail = null; });
     final auth = LocalAuthentication();
     try {
       final didAuth = await auth.authenticate(
         localizedReason: 'Autentícate para acceder a Claude Pilot',
-        // biometricOnly defaults to false — PIN fallback automatic (BIO-04, T-05-06)
+        options: const AuthenticationOptions(
+          stickyAuth: false,
+          biometricOnly: false,
+        ),
       );
       if (didAuth && mounted) {
         ref.read(biometricAuthProvider.notifier).setAuthenticated(true);
       } else if (mounted) {
-        setState(() => _authFailed = true);
+        setState(() { _authFailed = true; _errorDetail = 'didAuth=false (cancelado o no reconocido)'; });
       }
-    } on PlatformException {
-      // local_auth 2.x throws PlatformException (not LocalAuthException which is 3.x only)
-      if (mounted) setState(() => _authFailed = true);
+    } on PlatformException catch (e) {
+      if (mounted) {
+        setState(() {
+          _authFailed = true;
+          _errorDetail = 'code=${e.code}  msg=${e.message}  details=${e.details}';
+        });
+      }
     }
   }
 
@@ -44,43 +53,61 @@ class _LockScreenState extends ConsumerState<LockScreen> {
     return Scaffold(
       backgroundColor: Theme.of(context).colorScheme.surface,
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(32),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(
-                Icons.lock_outline,
-                size: 64,
-                color: Theme.of(context).colorScheme.primary,
-              ),
-              const SizedBox(height: 24),
-              Text(
-                'Claude Pilot',
-                style: Theme.of(context).textTheme.headlineMedium,
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Autentícate para continuar',
-                style: TextStyle(
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+        child: Center(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 32),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.lock_outline,
+                  size: 64,
+                  color: Theme.of(context).colorScheme.primary,
                 ),
-              ),
-              const SizedBox(height: 32),
-              if (_authFailed) ...[
+                const SizedBox(height: 24),
                 Text(
-                  'Autenticación requerida',
+                  'Claude Pilot',
+                  textAlign: TextAlign.center,
+                  style: Theme.of(context).textTheme.headlineMedium,
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Autentícate para continuar',
+                  textAlign: TextAlign.center,
                   style: TextStyle(
-                    color: Theme.of(context).colorScheme.error,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
                   ),
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 32),
+                if (_authFailed) ...[
+                  Text(
+                    'Autenticación fallida',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.error,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  if (_errorDetail != null) ...[
+                    const SizedBox(height: 8),
+                    SelectableText(
+                      _errorDetail!,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        fontFamily: 'monospace',
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: 16),
+                ],
+                FilledButton(
+                  onPressed: _authenticate,
+                  child: const Text('Autenticar'),
+                ),
               ],
-              FilledButton(
-                onPressed: _authenticate,
-                child: const Text('Autenticar'),
-              ),
-            ],
+            ),
           ),
         ),
       ),

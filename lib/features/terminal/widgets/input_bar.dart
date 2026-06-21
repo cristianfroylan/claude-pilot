@@ -2,21 +2,17 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:speech_to_text/speech_to_text.dart';
 
+import '../../../core/models/machine.dart';
+import '../../machines/providers/machines_provider.dart';
 import '../models/ssh_session_state.dart';
 import '../providers/ssh_session_provider.dart';
+import 'folder_picker_sheet.dart';
 import 'voice_bottom_sheet.dart';
 
 const _arrowLeft  = [0x1b, 0x5b, 0x44];
 const _arrowUp    = [0x1b, 0x5b, 0x41];
 const _arrowDown  = [0x1b, 0x5b, 0x42];
 const _arrowRight = [0x1b, 0x5b, 0x43];
-
-const _commands = [
-  _Cmd('Interrupt  [Ctrl+C]',  [0x03]),
-  _Cmd('Exit / EOF  [Ctrl+D]', [0x04]),
-  _Cmd('Escape  [ESC]',        [0x1b]),
-  _Cmd('Tab  [Tab]',           [0x09]),
-];
 
 class _Cmd {
   final String label;
@@ -30,36 +26,83 @@ class _TextCmd {
   const _TextCmd(this.label, this.command);
 }
 
+// Control + session merged
+const _controlCommands = [
+  _Cmd('Ctrl+C', [0x03]),
+  _Cmd('Ctrl+D', [0x04]),
+  _Cmd('Ctrl+U', [0x15]),
+  _Cmd('Ctrl+Z', [0x1a]),
+  _Cmd('Ctrl+X', [0x18]),
+  _Cmd('ESC',    [0x1b]),
+  _Cmd('Tab',    [0x09]),
+];
+
+const _controlTextCommands = [
+  _TextCmd('exit', 'exit'),
+  _TextCmd('q',    'q'),
+  _TextCmd('\\q',  '\\q'),
+];
+
+// Claude: run / continue / resume first, then slash commands
 const _claudeCommands = [
-  _TextCmd('/clear',   '/clear'),
+  _TextCmd('run',      'claude --dangerously-skip-permissions'),
+  _TextCmd('continue', 'claude --dangerously-skip-permissions --continue'),
+  _TextCmd('resume',   'claude --dangerously-skip-permissions --resume'),
   _TextCmd('/compact', '/compact'),
-  _TextCmd('/help',    '/help'),
   _TextCmd('/cost',    '/cost'),
-  _TextCmd('/gsd',     '/gsd'),
+  _TextCmd('/model',   '/model'),
 ];
 
-const _shellCommands = [
-  _TextCmd('cd ~',  'cd ~'),
-  _TextCmd('cd ..', 'cd ..'),
-  _TextCmd('ls',    'ls'),
-  _TextCmd('pwd',   'pwd'),
-];
+List<_TextCmd> _shellCommands(RemotePlatform platform) => switch (platform) {
+  RemotePlatform.linux => const [
+    _TextCmd('cd ~',   'cd ~'),
+    _TextCmd('cd ..',  'cd ..'),
+    _TextCmd('ls',     'ls'),
+    _TextCmd('ls -la', 'ls -la'),
+    _TextCmd('pwd',    'pwd'),
+    _TextCmd('cat',    'cat'),
+    _TextCmd('mkdir',  'mkdir'),
+    _TextCmd('rm',     'rm'),
+    _TextCmd('grep',   'grep'),
+    _TextCmd('ps',     'ps aux'),
+    _TextCmd('kill',   'kill'),
+    _TextCmd('top',    'top'),
+  ],
+  RemotePlatform.macos => const [
+    _TextCmd('cd ~',   'cd ~'),
+    _TextCmd('cd ..',  'cd ..'),
+    _TextCmd('ls',     'ls'),
+    _TextCmd('ls -la', 'ls -la'),
+    _TextCmd('pwd',    'pwd'),
+    _TextCmd('open .', 'open .'),
+    _TextCmd('cat',    'cat'),
+    _TextCmd('mkdir',  'mkdir'),
+    _TextCmd('rm',     'rm'),
+    _TextCmd('grep',   'grep'),
+    _TextCmd('ps',     'ps aux'),
+    _TextCmd('kill',   'kill'),
+  ],
+  RemotePlatform.windows => const [
+    _TextCmd('cd ..',      'cd ..'),
+    _TextCmd('dir',        'dir'),
+    _TextCmd('dir /a',     'dir /a'),
+    _TextCmd('cls',        'cls'),
+    _TextCmd('type',       'type'),
+    _TextCmd('mkdir',      'mkdir'),
+    _TextCmd('del',        'del'),
+    _TextCmd('findstr',    'findstr'),
+    _TextCmd('tasklist',   'tasklist'),
+    _TextCmd('taskkill',   'taskkill /f /im'),
+    _TextCmd('ipconfig',   'ipconfig'),
+    _TextCmd('echo %cd%',  'echo %cd%'),
+  ],
+};
 
-const _sessionCommands = [
-  _TextCmd('claude',   'claude'),
-  _TextCmd('claude .', 'claude .'),
-  _TextCmd('exit',     'exit'),
-  _TextCmd('q',        'q'),
-  _TextCmd('\\q',      '\\q'),
-];
-
-/// InputBar — expandable Command panel + arrow keys + mic placeholder.
-///
-/// Tapping "Command" expands a row of chips inline (no route push, no focus
-/// loss) so the soft keyboard stays open while selecting a control signal.
+/// InputBar — expandable command panel + arrow keys + folder picker + mic.
 class InputBar extends ConsumerStatefulWidget {
   final String machineId;
-  const InputBar({super.key, required this.machineId});
+  final String tabId;
+  const InputBar({super.key, required this.machineId, required this.tabId});
 
   @override
   ConsumerState<InputBar> createState() => _InputBarState();
@@ -67,8 +110,8 @@ class InputBar extends ConsumerStatefulWidget {
 
 class _InputBarState extends ConsumerState<InputBar> {
   bool _commandsVisible = false;
+  bool _loadingFolders = false;
 
-  // Voice dictation state (VOZ-01..04)
   final _speech = SpeechToText();
   bool _voiceAvailable = false;
 
@@ -92,34 +135,45 @@ class _InputBarState extends ConsumerState<InputBar> {
     super.dispose();
   }
 
-  Future<void> _launchVoiceRecognition() async {
-    if (!_voiceAvailable || _speech.isListening) return;
-    await _speech.listen(
-      onResult: (result) {
-        if (result.finalResult && result.recognizedWords.isNotEmpty) {
-          _speech.stop();
-          if (mounted) _showReviewSheet(result.recognizedWords);
-        }
-      },
-      listenOptions: SpeechListenOptions(
-        listenFor: const Duration(seconds: 30),
-        pauseFor: const Duration(seconds: 5),
-        localeId: null,
-      ),
-    );
-  }
-
-  void _showReviewSheet(String transcript) {
+  void _openVoiceSheet() {
     showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
       builder: (_) => VoiceBottomSheet(
-        transcript: transcript,
-        onSend: () {
+        onSend: (text) {
           ref
-              .read(sshSessionProvider(widget.machineId).notifier)
-              .sendText('$transcript\n');
-          Navigator.of(context).pop();
+              .read(sshSessionProvider(widget.machineId, widget.tabId).notifier)
+              .sendText(text);
+        },
+      ),
+    );
+  }
+
+  Future<void> _showFolderPicker(Machine machine) async {
+    if (_loadingFolders) return;
+    setState(() => _loadingFolders = true);
+
+    final notifier =
+        ref.read(sshSessionProvider(widget.machineId, widget.tabId).notifier);
+    final folders = <(String basePath, String name)>[];
+    for (final basePath in machine.folderPaths) {
+      final names = await notifier.listFolders(basePath);
+      for (final name in names) {
+        folders.add((basePath, name));
+      }
+    }
+
+    if (mounted) setState(() => _loadingFolders = false);
+    if (folders.isEmpty || !mounted) return;
+
+    showDialog<void>(
+      context: context,
+      barrierDismissible: true,
+      builder: (_) => FolderPickerSheet(
+        folders: folders,
+        onFolderSelected: (basePath, name) {
+          final fullPath = machine.platform.joinPath(basePath, name);
+          notifier.sendText('${machine.platform.cdCommand(fullPath)}\n');
         },
       ),
     );
@@ -127,14 +181,23 @@ class _InputBarState extends ConsumerState<InputBar> {
 
   @override
   Widget build(BuildContext context) {
-    final stateValue = ref.watch(sshSessionProvider(widget.machineId)).value;
+    final stateValue =
+        ref.watch(sshSessionProvider(widget.machineId, widget.tabId)).value;
     final isConnected = stateValue is SshConnected;
     final colorScheme = Theme.of(context).colorScheme;
+
+    final machine = ref
+        .watch(machineProvider)
+        .value
+        ?.where((m) => m.id == widget.machineId)
+        .firstOrNull;
+    final hasFolderPaths = machine?.folderPaths.isNotEmpty == true;
+    final platform = machine?.platform ?? RemotePlatform.linux;
 
     void send(List<int> bytes) {
       if (!isConnected) return;
       ref
-          .read(sshSessionProvider(widget.machineId).notifier)
+          .read(sshSessionProvider(widget.machineId, widget.tabId).notifier)
           .sendBytes(bytes);
     }
 
@@ -146,7 +209,7 @@ class _InputBarState extends ConsumerState<InputBar> {
     void sendText(String text) {
       if (!isConnected) return;
       ref
-          .read(sshSessionProvider(widget.machineId).notifier)
+          .read(sshSessionProvider(widget.machineId, widget.tabId).notifier)
           .sendText(text);
     }
 
@@ -155,15 +218,23 @@ class _InputBarState extends ConsumerState<InputBar> {
           child: Text(
             label,
             style: TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w400,
+              fontSize: 10,
+              fontWeight: FontWeight.w500,
               color: colorScheme.onSurfaceVariant,
+              letterSpacing: 0.5,
             ),
           ),
         );
 
+    Widget ctrlChip(_Cmd c) => ActionChip(
+          label: Text(c.label, style: const TextStyle(fontSize: 11)),
+          visualDensity: VisualDensity.compact,
+          onPressed: isConnected ? () => sendAndClose(c.bytes) : null,
+        );
+
     Widget textChip(_TextCmd c) => ActionChip(
-          label: Text(c.label, style: const TextStyle(fontSize: 12)),
+          label: Text(c.label, style: const TextStyle(fontSize: 11)),
+          visualDensity: VisualDensity.compact,
           onPressed: isConnected ? () => sendText('${c.command}\n') : null,
         );
 
@@ -177,13 +248,19 @@ class _InputBarState extends ConsumerState<InputBar> {
           ),
         );
 
+    final shellLabel = switch (platform) {
+      RemotePlatform.linux   => 'Shell — Linux',
+      RemotePlatform.macos   => 'Shell — macOS',
+      RemotePlatform.windows => 'Shell — Windows',
+    };
+
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        // ── Expandable command panel (sectioned, scrollable) ─────────
+        // ── Expandable command panel ──────────────────────────────────
         if (_commandsVisible)
           ConstrainedBox(
-            constraints: const BoxConstraints(maxHeight: 240),
+            constraints: const BoxConstraints(maxHeight: 200),
             child: SingleChildScrollView(
               child: Container(
                 color: colorScheme.surfaceContainerHighest,
@@ -194,47 +271,33 @@ class _InputBarState extends ConsumerState<InputBar> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    // Control section
+                    // Control + Session merged
                     sectionHeader('Control'),
                     Wrap(
-                      spacing: 8,
+                      spacing: 6,
                       runSpacing: 4,
                       children: [
-                        for (final cmd in _commands)
-                          ActionChip(
-                            label: Text(cmd.label,
-                                style: const TextStyle(fontSize: 12)),
-                            onPressed: isConnected
-                                ? () => sendAndClose(cmd.bytes)
-                                : null,
-                          ),
+                        for (final cmd in _controlCommands) ctrlChip(cmd),
+                        for (final cmd in _controlTextCommands) textChip(cmd),
                       ],
                     ),
-                    // Claude section
+                    // Claude
                     sectionHeader('Claude'),
                     Wrap(
-                      spacing: 8,
+                      spacing: 6,
                       runSpacing: 4,
                       children: [
                         for (final cmd in _claudeCommands) textChip(cmd),
                       ],
                     ),
-                    // Shell section
-                    sectionHeader('Shell'),
+                    // Shell (platform-specific)
+                    sectionHeader(shellLabel),
                     Wrap(
-                      spacing: 8,
+                      spacing: 6,
                       runSpacing: 4,
                       children: [
-                        for (final cmd in _shellCommands) textChip(cmd),
-                      ],
-                    ),
-                    // Session section
-                    sectionHeader('Session'),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 4,
-                      children: [
-                        for (final cmd in _sessionCommands) textChip(cmd),
+                        for (final cmd in _shellCommands(platform))
+                          textChip(cmd),
                       ],
                     ),
                   ],
@@ -246,8 +309,7 @@ class _InputBarState extends ConsumerState<InputBar> {
         // ── Main bar ─────────────────────────────────────────────────
         Container(
           color: colorScheme.surfaceContainerHigh,
-          padding:
-              const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
           child: Row(
             children: [
               // Command toggle
@@ -257,9 +319,7 @@ class _InputBarState extends ConsumerState<InputBar> {
                         setState(() => _commandsVisible = !_commandsVisible)
                     : null,
                 icon: Icon(
-                  _commandsVisible
-                      ? Icons.expand_less  // panel open → tap to collapse
-                      : Icons.expand_more, // panel closed → tap to expand
+                  _commandsVisible ? Icons.expand_less : Icons.expand_more,
                   size: 16,
                 ),
                 label: const Text('Command',
@@ -273,7 +333,31 @@ class _InputBarState extends ConsumerState<InputBar> {
 
               const Spacer(),
 
-              // Mic button — hidden when voice is unavailable (VOZ-04)
+              // Folder picker button — only when machine has configured paths
+              if (hasFolderPaths)
+                Semantics(
+                  label: 'Pick working folder',
+                  child: SizedBox(
+                    width: 36,
+                    height: 36,
+                    child: IconButton(
+                      padding: EdgeInsets.zero,
+                      tooltip: 'Pick folder',
+                      icon: _loadingFolders
+                          ? const SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Icon(Icons.folder_outlined, size: 20),
+                      onPressed: isConnected && !_loadingFolders && machine != null
+                          ? () => _showFolderPicker(machine)
+                          : null,
+                    ),
+                  ),
+                ),
+
+              // Mic button
               if (_voiceAvailable)
                 Semantics(
                   label: 'Start voice input',
@@ -284,12 +368,12 @@ class _InputBarState extends ConsumerState<InputBar> {
                       padding: EdgeInsets.zero,
                       tooltip: 'Voice input',
                       icon: const Icon(Icons.mic, size: 20),
-                      onPressed: isConnected ? _launchVoiceRecognition : null,
+                      onPressed: isConnected ? _openVoiceSheet : null,
                     ),
                   ),
                 ),
 
-              // Arrow keys (right-aligned)
+              // Arrow keys
               arrowBtn(Icons.arrow_back,     _arrowLeft),
               arrowBtn(Icons.arrow_upward,   _arrowUp),
               arrowBtn(Icons.arrow_downward, _arrowDown),

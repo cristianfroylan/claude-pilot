@@ -11,11 +11,13 @@ import '../providers/ssh_session_provider.dart';
 /// Uses ConsumerWidget to access the SSH session notifier for resizeTerminal.
 class TerminalViewWrapper extends ConsumerWidget {
   final String machineId;
+  final String tabId;
   final Terminal terminal;
 
   const TerminalViewWrapper({
     super.key,
     required this.machineId,
+    required this.tabId,
     required this.terminal,
   });
 
@@ -33,7 +35,7 @@ class TerminalViewWrapper extends ConsumerWidget {
         // build causes setState-during-build errors (Pitfall 2 in RESEARCH.md).
         WidgetsBinding.instance.addPostFrameCallback((_) {
           ref
-              .read(sshSessionProvider(machineId).notifier)
+              .read(sshSessionProvider(machineId, tabId).notifier)
               .resizeTerminal(cols, rows);
         });
 

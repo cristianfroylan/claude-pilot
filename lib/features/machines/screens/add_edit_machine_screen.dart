@@ -1,9 +1,14 @@
+import 'dart:async';
+
+import 'package:dartssh2/dartssh2.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/models/machine.dart';
 import '../providers/machines_provider.dart';
+
+enum _TestStatus { loading, success, error }
 
 class AddEditMachineScreen extends ConsumerStatefulWidget {
   final String? machineId;
@@ -27,6 +32,8 @@ class _AddEditMachineScreenState extends ConsumerState<AddEditMachineScreen> {
   RemotePlatform _platform = RemotePlatform.linux;
   bool _obscurePassword = true;
   bool _loaded = false;
+  _TestStatus? _testStatus;
+  String? _testMessage;
 
   @override
   void dispose() {
@@ -115,6 +122,95 @@ class _AddEditMachineScreenState extends ConsumerState<AddEditMachineScreen> {
     }
   }
 
+  Future<void> _testConnection() async {
+    final host = _hostCtrl.text.trim();
+    final portStr = _portCtrl.text.trim();
+    final username = _usernameCtrl.text.trim();
+    final password = _passwordCtrl.text;
+
+    if (host.isEmpty || portStr.isEmpty || username.isEmpty) {
+      setState(() {
+        _testStatus = _TestStatus.error;
+        _testMessage = 'Fill in Host, Port and Username before testing.';
+      });
+      return;
+    }
+    final port = int.tryParse(portStr);
+    if (port == null || port < 1 || port > 65535) {
+      setState(() {
+        _testStatus = _TestStatus.error;
+        _testMessage = 'Invalid port number.';
+      });
+      return;
+    }
+
+    setState(() {
+      _testStatus = _TestStatus.loading;
+      _testMessage = null;
+    });
+
+    SSHClient? client;
+    try {
+      final socket = await SSHSocket.connect(host, port)
+          .timeout(const Duration(seconds: 10));
+      client = SSHClient(
+        socket,
+        username: username,
+        onPasswordRequest: () => password,
+      );
+      final session = await client.shell(
+        pty: const SSHPtyConfig(type: 'xterm', width: 80, height: 24),
+      );
+      session.close();
+      if (mounted) {
+        setState(() {
+          _testStatus = _TestStatus.success;
+          _testMessage = 'Connected successfully to $username@$host:$port';
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _testStatus = _TestStatus.error;
+          _testMessage = _describeError(e, host, port);
+        });
+      }
+    } finally {
+      client?.close();
+    }
+  }
+
+  String _describeError(Object e, String host, int port) {
+    final s = e.toString().toLowerCase();
+    if (s.contains('connection refused')) {
+      return 'Connection refused — SSH may not be running on port $port, or a firewall is blocking it.';
+    }
+    if (s.contains('unreachable') || s.contains('no route') ||
+        s.contains('network is unreachable')) {
+      return 'Host unreachable — verify the IP address and that the machine is on the same local network.';
+    }
+    if (s.contains('timed out') || s.contains('timeout')) {
+      return 'Timed out — $host is not responding on port $port. Check the IP address and network connectivity.';
+    }
+    if (s.contains('auth') || s.contains('authentication') ||
+        s.contains('password') || s.contains('permission denied')) {
+      return 'Authentication failed — wrong username or password.';
+    }
+    if (s.contains('host key') || s.contains('hostkey')) {
+      return 'Host key error — the server identity could not be verified.';
+    }
+    return 'Connection failed: $e';
+  }
+
+  // Android bug workaround: first tap on an unfocused TextField creates a
+  // selection from 0 to tap-position instead of placing the cursor there.
+  // Collapsing to selection.end restores the expected single-tap behavior.
+  void _collapseTap(TextEditingController ctrl) {
+    if (ctrl.selection.isValid && !ctrl.selection.isCollapsed) {
+      ctrl.selection = TextSelection.collapsed(offset: ctrl.selection.end);
+    }
+  }
+
   void _addFolderPath() {
     final path = _folderPathCtrl.text.trim();
     if (path.isEmpty) return;
@@ -122,6 +218,51 @@ class _AddEditMachineScreenState extends ConsumerState<AddEditMachineScreen> {
       _folderPaths.add(path);
       _folderPathCtrl.clear();
     });
+  }
+
+  Widget _buildTestResult() {
+    final colorScheme = Theme.of(context).colorScheme;
+    return switch (_testStatus) {
+      _TestStatus.loading => const Row(
+          children: [
+            SizedBox(
+              width: 16,
+              height: 16,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+            SizedBox(width: 8),
+            Text('Testing connection…'),
+          ],
+        ),
+      _TestStatus.success => Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Icon(Icons.check_circle_outline,
+                color: Colors.green, size: 18),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                _testMessage ?? '',
+                style: const TextStyle(color: Colors.green),
+              ),
+            ),
+          ],
+        ),
+      _TestStatus.error => Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(Icons.error_outline, color: colorScheme.error, size: 18),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                _testMessage ?? '',
+                style: TextStyle(color: colorScheme.error),
+              ),
+            ),
+          ],
+        ),
+      null => const SizedBox.shrink(),
+    };
   }
 
   @override
@@ -163,6 +304,7 @@ class _AddEditMachineScreenState extends ConsumerState<AddEditMachineScreen> {
               children: [
                 TextFormField(
                   controller: _nameCtrl,
+                  onTap: () => _collapseTap(_nameCtrl),
                   decoration: const InputDecoration(
                     labelText: 'Name',
                     hintText: 'My Laptop',
@@ -210,6 +352,7 @@ class _AddEditMachineScreenState extends ConsumerState<AddEditMachineScreen> {
                 const SizedBox(height: 16),
                 TextFormField(
                   controller: _hostCtrl,
+                  onTap: () => _collapseTap(_hostCtrl),
                   decoration: const InputDecoration(
                     labelText: 'Host',
                     hintText: '192.168.1.100',
@@ -221,6 +364,7 @@ class _AddEditMachineScreenState extends ConsumerState<AddEditMachineScreen> {
                 const SizedBox(height: 16),
                 TextFormField(
                   controller: _portCtrl,
+                  onTap: () => _collapseTap(_portCtrl),
                   decoration: const InputDecoration(
                     labelText: 'Port',
                     hintText: '22',
@@ -239,6 +383,7 @@ class _AddEditMachineScreenState extends ConsumerState<AddEditMachineScreen> {
                 const SizedBox(height: 16),
                 TextFormField(
                   controller: _usernameCtrl,
+                  onTap: () => _collapseTap(_usernameCtrl),
                   decoration: const InputDecoration(
                     labelText: 'Username',
                     hintText: 'cristian',
@@ -250,6 +395,7 @@ class _AddEditMachineScreenState extends ConsumerState<AddEditMachineScreen> {
                 const SizedBox(height: 16),
                 TextFormField(
                   controller: _passwordCtrl,
+                  onTap: () => _collapseTap(_passwordCtrl),
                   obscureText: _obscurePassword,
                   decoration: InputDecoration(
                     labelText: 'Password',
@@ -342,6 +488,7 @@ class _AddEditMachineScreenState extends ConsumerState<AddEditMachineScreen> {
                     Expanded(
                       child: TextFormField(
                         controller: _folderPathCtrl,
+                        onTap: () => _collapseTap(_folderPathCtrl),
                         decoration: InputDecoration(
                           labelText: 'Folder path',
                           hintText: _platform.pathHint,
@@ -362,13 +509,29 @@ class _AddEditMachineScreenState extends ConsumerState<AddEditMachineScreen> {
                   ],
                 ),
                 const SizedBox(height: 24),
-                SizedBox(
-                  width: double.infinity,
-                  child: FilledButton(
-                    onPressed: _save,
-                    child: const Text('Save Machine'),
-                  ),
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: _testStatus == _TestStatus.loading
+                            ? null
+                            : _testConnection,
+                        child: const Text('Test Connection'),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: FilledButton(
+                        onPressed: _save,
+                        child: const Text('Save Machine'),
+                      ),
+                    ),
+                  ],
                 ),
+                if (_testStatus != null) ...[
+                  const SizedBox(height: 12),
+                  _buildTestResult(),
+                ],
               ],
             ),
           ),

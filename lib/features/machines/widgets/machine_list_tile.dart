@@ -7,112 +7,128 @@ import '../providers/machine_status_provider.dart';
 class MachineListTile extends ConsumerWidget {
   final Machine machine;
   final VoidCallback onTap;
-  final VoidCallback onEdit;
   final VoidCallback onDelete;
 
   const MachineListTile({
     super.key,
     required this.machine,
     required this.onTap,
-    required this.onEdit,
     required this.onDelete,
   });
 
   static IconData _platformIcon(RemotePlatform platform) => switch (platform) {
-        RemotePlatform.linux => Icons.terminal,
-        RemotePlatform.macos => Icons.laptop_mac,
+        RemotePlatform.linux   => Icons.terminal,
+        RemotePlatform.macos   => Icons.laptop_mac,
         RemotePlatform.windows => Icons.desktop_windows,
       };
 
-  Future<bool?> _confirmDelete(BuildContext context) {
-    return showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Delete machine?'),
-        content: Text(
-          'This will remove ${machine.name} and its saved credentials. '
-          'This cannot be undone.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text('Keep Machine'),
+  Future<bool?> _confirmDelete(BuildContext context) => showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Eliminar máquina'),
+          content: Text(
+            '¿Eliminar "${machine.name}"? Se borrarán las credenciales guardadas.',
           ),
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(true),
-            style: TextButton.styleFrom(
-              foregroundColor: Theme.of(context).colorScheme.error,
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(false),
+              child: const Text('Cancelar'),
             ),
-            child: const Text('Delete'),
-          ),
-        ],
-      ),
-    );
-  }
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(true),
+              style: TextButton.styleFrom(
+                foregroundColor: Theme.of(context).colorScheme.error,
+              ),
+              child: const Text('Eliminar'),
+            ),
+          ],
+        ),
+      );
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final colorScheme = Theme.of(context).colorScheme;
     final statusAsync = ref.watch(machineStatusProvider(machine));
 
     final Color dotColor;
     if (statusAsync.isLoading) {
-      dotColor = Colors.grey;
+      dotColor = colorScheme.onSurfaceVariant.withValues(alpha: 0.4);
     } else if (statusAsync.hasError) {
-      dotColor = Theme.of(context).colorScheme.error;
+      dotColor = colorScheme.error;
     } else {
       dotColor = switch (statusAsync.value) {
-        MachineStatus.reachable => Colors.green,
-        MachineStatus.unreachable => Colors.grey,
-        MachineStatus.error => Theme.of(context).colorScheme.error,
-        null => Colors.grey,
+        MachineStatus.reachable   => Colors.green.shade400,
+        MachineStatus.unreachable => colorScheme.onSurfaceVariant.withValues(alpha: 0.3),
+        MachineStatus.error       => colorScheme.error,
+        null                      => colorScheme.onSurfaceVariant.withValues(alpha: 0.3),
       };
     }
 
-    return Dismissible(
-      key: Key(machine.id),
-      direction: DismissDirection.endToStart,
-      background: Container(
-        color: Theme.of(context).colorScheme.error,
-        alignment: Alignment.centerRight,
-        padding: const EdgeInsets.only(right: 16),
-        child: const Icon(Icons.delete, color: Colors.white),
-      ),
-      confirmDismiss: (_) => _confirmDelete(context),
-      onDismissed: (_) => onDelete(),
-      child: ListTile(
-        leading: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              _platformIcon(machine.platform),
-              size: 20,
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
-            ),
-            const SizedBox(height: 3),
-            Container(
-              width: 8,
-              height: 8,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: dotColor,
-              ),
-            ),
-          ],
-        ),
-        title: Text(
-          machine.name,
-          style: const TextStyle(fontSize: 14),
-        ),
-        subtitle: Text(
-          '${machine.username}@${machine.host}:${machine.port}',
-          style: Theme.of(context).textTheme.bodySmall,
-        ),
+    return GestureDetector(
+      onLongPress: () async {
+        final confirm = await _confirmDelete(context);
+        if (confirm == true) onDelete();
+      },
+      child: InkWell(
         onTap: onTap,
-        trailing: Semantics(
-          label: 'Edit machine',
-          child: IconButton(
-            icon: const Icon(Icons.edit),
-            onPressed: onEdit,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          child: Row(
+            children: [
+              // Platform icon + status dot
+              SizedBox(
+                width: 36,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      _platformIcon(machine.platform),
+                      size: 22,
+                      color: colorScheme.onSurfaceVariant,
+                    ),
+                    const SizedBox(height: 4),
+                    Container(
+                      width: 7,
+                      height: 7,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: dotColor,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 12),
+              // Name + connection info
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      machine.name,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      '${machine.username}@${machine.host}:${machine.port}  ·  ${machine.platform.label}',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              // Chevron hint
+              Icon(
+                Icons.chevron_right,
+                size: 18,
+                color: colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
+              ),
+            ],
           ),
         ),
       ),

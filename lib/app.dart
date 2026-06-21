@@ -9,7 +9,7 @@ import 'features/sessions/screens/sessions_screen.dart';
 import 'core/theme/app_theme.dart';
 
 final _router = GoRouter(
-  initialLocation: '/machines',
+  initialLocation: '/sessions',
   routes: [
     GoRoute(
       path: '/machines',

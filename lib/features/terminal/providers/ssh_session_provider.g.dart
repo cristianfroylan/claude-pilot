@@ -61,7 +61,7 @@ final class SshSessionProvider
   /// Returns `AsyncValue<SshSessionState>` — always AsyncData after first emit.
   SshSessionProvider._({
     required SshSessionFamily super.from,
-    required String super.argument,
+    required (String, String) super.argument,
   }) : super(
          retry: _noRetry,
          name: r'sshSessionProvider',
@@ -77,7 +77,7 @@ final class SshSessionProvider
   String toString() {
     return r'sshSessionProvider'
         ''
-        '($argument)';
+        '$argument';
   }
 
   @$internal
@@ -95,7 +95,7 @@ final class SshSessionProvider
   }
 }
 
-String _$sshSessionHash() => r'a81e1e42d591f53ff6ab352dd1bff78c8309d789';
+String _$sshSessionHash() => r'00de8621562c5d43647ce8e08f6d1363a0c3e22f';
 
 /// SSH terminal session provider.
 ///
@@ -120,7 +120,7 @@ final class SshSessionFamily extends $Family
           AsyncValue<SshSessionState>,
           SshSessionState,
           FutureOr<SshSessionState>,
-          String
+          (String, String)
         > {
   SshSessionFamily._()
     : super(
@@ -147,8 +147,8 @@ final class SshSessionFamily extends $Family
   /// Usage: `ref.watch(sshSessionProvider(machineId))`
   /// Returns `AsyncValue<SshSessionState>` — always AsyncData after first emit.
 
-  SshSessionProvider call(String machineId) =>
-      SshSessionProvider._(argument: machineId, from: this);
+  SshSessionProvider call(String machineId, String tabId) =>
+      SshSessionProvider._(argument: (machineId, tabId), from: this);
 
   @override
   String toString() => r'sshSessionProvider';
@@ -171,10 +171,11 @@ final class SshSessionFamily extends $Family
 /// Returns `AsyncValue<SshSessionState>` — always AsyncData after first emit.
 
 abstract class _$SshSession extends $AsyncNotifier<SshSessionState> {
-  late final _$args = ref.$arg as String;
-  String get machineId => _$args;
+  late final _$args = ref.$arg as (String, String);
+  String get machineId => _$args.$1;
+  String get tabId => _$args.$2;
 
-  FutureOr<SshSessionState> build(String machineId);
+  FutureOr<SshSessionState> build(String machineId, String tabId);
   @$mustCallSuper
   @override
   void runBuild() {
@@ -187,6 +188,6 @@ abstract class _$SshSession extends $AsyncNotifier<SshSessionState> {
               Object?,
               Object?
             >;
-    element.handleCreate(ref, () => build(_$args));
+    element.handleCreate(ref, () => build(_$args.$1, _$args.$2));
   }
 }

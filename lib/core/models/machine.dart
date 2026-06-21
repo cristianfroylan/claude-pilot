@@ -17,12 +17,37 @@ enum RemotePlatform {
         RemotePlatform.windows => r'C:\Users\user\projects\myapp',
       };
 
-  /// Shell command to change into [path].
-  /// Linux/macOS: bash/zsh `cd "$path"`.
-  /// Windows: PowerShell `Set-Location "$path"` (OpenSSH on Windows defaults to PS).
-  String cdCommand(String path) => switch (this) {
-        RemotePlatform.linux || RemotePlatform.macos => 'cd "$path"',
-        RemotePlatform.windows => 'Set-Location "$path"',
+  /// Shell command to change into [path] and clear the screen.
+  /// Quotes are added only when the path contains spaces.
+  /// Linux/macOS use single quotes; Windows CMD requires double quotes.
+  /// Commands are joined with `&&` so clear only runs if cd succeeds.
+  String cdCommand(String path) {
+    final sp = path.contains(' ');
+    return switch (this) {
+      RemotePlatform.linux || RemotePlatform.macos =>
+        "cd ${sp ? "'$path'" : path} && clear",
+      RemotePlatform.windows =>
+        'cd /d ${sp ? '"$path"' : path} && cls',
+    };
+  }
+
+  /// Command to list direct subdirectory NAMES inside [basePath].
+  /// Runs via non-PTY execute channel — invisible to the terminal.
+  /// Quotes are added only when the path contains spaces.
+  String lsCommand(String basePath) {
+    final sp = basePath.contains(' ');
+    return switch (this) {
+      RemotePlatform.linux || RemotePlatform.macos =>
+        "find ${sp ? "'$basePath'" : basePath} -maxdepth 1 -mindepth 1 -type d -exec basename {} ';'",
+      RemotePlatform.windows =>
+        'dir /b /ad ${sp ? '"$basePath"' : basePath}',
+    };
+  }
+
+  /// Join [base] directory and subdirectory [name] with the platform separator.
+  String joinPath(String base, String name) => switch (this) {
+        RemotePlatform.linux || RemotePlatform.macos => '$base/$name',
+        RemotePlatform.windows => '$base\\$name',
       };
 
   /// Deserialize from JSON string. Unknown values default to [linux] for

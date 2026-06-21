@@ -24,7 +24,7 @@ class Sessions extends _$Sessions {
   void closeTab(int index) {
     if (index < 0 || index >= state.tabs.length) return;
     final tab = state.tabs[index];
-    ref.read(sshSessionProvider(tab.machineId).notifier).closeAndDispose();
+    ref.read(sshSessionProvider(tab.machineId, tab.id).notifier).closeAndDispose();
     final tabs = [...state.tabs]..removeAt(index);
     if (tabs.isEmpty) {
       state = const SessionsState(tabs: [], activeIndex: 0);

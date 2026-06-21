@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../auth/utils/biometric_guard.dart';
-import '../../sessions/providers/sessions_provider.dart';
 import '../providers/machines_provider.dart';
 import '../widgets/machine_list_tile.dart';
 
@@ -27,17 +26,19 @@ class MachineListScreen extends ConsumerWidget {
         error: (e, _) => Center(child: Text('Error: $e')),
         data: (machines) => machines.isEmpty
             ? _buildEmptyState(context)
-            : ListView.builder(
+            : ListView.separated(
                 itemCount: machines.length,
+                separatorBuilder: (_, __) => Divider(
+                  height: 1,
+                  indent: 64,
+                  color: Theme.of(context)
+                      .colorScheme
+                      .outlineVariant
+                      .withValues(alpha: 0.5),
+                ),
                 itemBuilder: (context, i) => MachineListTile(
                   machine: machines[i],
-                  onTap: () {
-                    ref
-                        .read(sessionsProvider.notifier)
-                        .openTab(machines[i].id);
-                    context.push('/sessions');
-                  },
-                  onEdit: () async {
+                  onTap: () async {
                     final ok = await requireBiometric();
                     if (ok && context.mounted) {
                       context.push('/machines/${machines[i].id}/edit');
@@ -65,16 +66,19 @@ class MachineListScreen extends ConsumerWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
+          Icon(
+            Icons.computer_outlined,
+            size: 48,
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
+          const SizedBox(height: 16),
           const Text(
-            'No machines yet',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
-            ),
+            'No hay máquinas',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
           ),
           const SizedBox(height: 8),
           Text(
-            'Tap + to add your first machine',
+            'Toca + para agregar tu primera máquina',
             style: TextStyle(
               fontSize: 14,
               color: Theme.of(context).colorScheme.onSurfaceVariant,

@@ -99,13 +99,16 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen> {
           backgroundColor:
               Theme.of(context).colorScheme.surfaceContainerHigh,
           automaticallyImplyLeading: false,
-          title: tabs.isEmpty
-              ? const Text(
-                  'Sessions',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-                )
-              : const SizedBox.shrink(),
+          title: const Text(
+            'Sessions',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+          ),
           actions: [
+            IconButton(
+              icon: const Icon(Icons.computer),
+              tooltip: 'Machines',
+              onPressed: () => context.push('/machines'),
+            ),
             IconButton(
               icon: const Icon(Icons.add),
               tooltip: 'New session',
@@ -166,6 +169,7 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen> {
                         final screen = TerminalScreen(
                           key: ValueKey(tabs[i].id),
                           machineId: tabs[i].machineId,
+                          tabId: tabs[i].id,
                           isActive: isActive,
                         );
                         return isActive
@@ -185,12 +189,9 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen> {
   }
 
   void _closeTab(BuildContext context, int index) {
-    final sessions = ref.read(sessionsProvider);
     ref.read(sessionsProvider.notifier).closeTab(index);
-    // If this was the last tab, navigate to machine list.
-    if (sessions.tabs.length == 1) {
-      context.go('/machines');
-    }
+    // No navigation needed — SessionsScreen is home and shows empty state
+    // when all tabs are closed.
   }
 
   void _showMachineSelectionSheet(BuildContext context) {
@@ -207,26 +208,48 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen> {
 
   Widget _buildEmptyState(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    final machines = ref.watch(machineProvider).value ?? [];
+    final hasMachines = machines.isNotEmpty;
+
     return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Text(
-            'No active sessions',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Tap + to start a session',
-            style: TextStyle(fontSize: 14, color: colorScheme.onSurfaceVariant),
-          ),
-          const SizedBox(height: 24),
-          FloatingActionButton(
-            onPressed: () => _showMachineSelectionSheet(context),
-            tooltip: 'New session',
-            child: const Icon(Icons.add),
-          ),
-        ],
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              hasMachines ? Icons.terminal : Icons.computer_outlined,
+              size: 64,
+              color: colorScheme.onSurfaceVariant,
+            ),
+            const SizedBox(height: 16),
+            Text(
+              hasMachines ? 'No active sessions' : 'No machines yet',
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              hasMachines
+                  ? 'Open the machines panel and tap a machine to connect'
+                  : 'Add a machine to start using Claude Code remotely',
+              style: TextStyle(fontSize: 14, color: colorScheme.onSurfaceVariant),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 24),
+            if (hasMachines)
+              FilledButton.icon(
+                icon: const Icon(Icons.add),
+                label: const Text('New Session'),
+                onPressed: () => _showMachineSelectionSheet(context),
+              )
+            else
+              FilledButton.icon(
+                icon: const Icon(Icons.computer),
+                label: const Text('Add Machine'),
+                onPressed: () => context.push('/machines'),
+              ),
+          ],
+        ),
       ),
     );
   }
@@ -260,7 +283,7 @@ class _TabChip extends ConsumerWidget {
     final machineName = machine?.name ?? tab.machineId;
 
     // Watch SSH state for status dot.
-    final sessionAsync = ref.watch(sshSessionProvider(tab.machineId));
+    final sessionAsync = ref.watch(sshSessionProvider(tab.machineId, tab.id));
     final sessionState = sessionAsync.value;
 
     // Derive status dot color.

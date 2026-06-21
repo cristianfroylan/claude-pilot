@@ -10,58 +10,25 @@ part of 'permission_detector_provider.dart';
 // ignore_for_file: type=lint, type=warning
 /// StreamNotifier that scans terminal stdout for Claude Code permission prompts.
 ///
-/// Emits the matched permission line (truncated to 80 chars) when a prompt is
-/// detected, or null when no permission prompt is present. The null emission
-/// drives the AnimatedSwitcher to hide the PermissionCard.
-///
-/// Detection is gated on session state — emits Stream.empty() while the initial
-/// connection is in progress (SshConnecting, loading, error). For all states that
-/// carry an active Terminal (SshConnected, SshReconnecting, SshFailed), the
-/// permission stream remains live so permission prompts still surface from the
-/// scrollback even during a mid-session drop.
-///
-/// Note: the SSH provider emits AsyncData on every countdown tick (1 Hz), so this
-/// provider rebuilds on each tick. Re-subscription is lightweight; .select() is not
-/// supported on generated provider types in Riverpod 3.x / riverpod_generator 4.x.
+/// Keyed by (machineId, tabId) so each tab has an independent detector instance
+/// even when two tabs connect to the same machine (SESS-TAB-01).
 
 @ProviderFor(PermissionDetector)
 final permissionDetectorProvider = PermissionDetectorFamily._();
 
 /// StreamNotifier that scans terminal stdout for Claude Code permission prompts.
 ///
-/// Emits the matched permission line (truncated to 80 chars) when a prompt is
-/// detected, or null when no permission prompt is present. The null emission
-/// drives the AnimatedSwitcher to hide the PermissionCard.
-///
-/// Detection is gated on session state — emits Stream.empty() while the initial
-/// connection is in progress (SshConnecting, loading, error). For all states that
-/// carry an active Terminal (SshConnected, SshReconnecting, SshFailed), the
-/// permission stream remains live so permission prompts still surface from the
-/// scrollback even during a mid-session drop.
-///
-/// Note: the SSH provider emits AsyncData on every countdown tick (1 Hz), so this
-/// provider rebuilds on each tick. Re-subscription is lightweight; .select() is not
-/// supported on generated provider types in Riverpod 3.x / riverpod_generator 4.x.
+/// Keyed by (machineId, tabId) so each tab has an independent detector instance
+/// even when two tabs connect to the same machine (SESS-TAB-01).
 final class PermissionDetectorProvider
     extends $StreamNotifierProvider<PermissionDetector, String?> {
   /// StreamNotifier that scans terminal stdout for Claude Code permission prompts.
   ///
-  /// Emits the matched permission line (truncated to 80 chars) when a prompt is
-  /// detected, or null when no permission prompt is present. The null emission
-  /// drives the AnimatedSwitcher to hide the PermissionCard.
-  ///
-  /// Detection is gated on session state — emits Stream.empty() while the initial
-  /// connection is in progress (SshConnecting, loading, error). For all states that
-  /// carry an active Terminal (SshConnected, SshReconnecting, SshFailed), the
-  /// permission stream remains live so permission prompts still surface from the
-  /// scrollback even during a mid-session drop.
-  ///
-  /// Note: the SSH provider emits AsyncData on every countdown tick (1 Hz), so this
-  /// provider rebuilds on each tick. Re-subscription is lightweight; .select() is not
-  /// supported on generated provider types in Riverpod 3.x / riverpod_generator 4.x.
+  /// Keyed by (machineId, tabId) so each tab has an independent detector instance
+  /// even when two tabs connect to the same machine (SESS-TAB-01).
   PermissionDetectorProvider._({
     required PermissionDetectorFamily super.from,
-    required String super.argument,
+    required (String, String) super.argument,
   }) : super(
          retry: null,
          name: r'permissionDetectorProvider',
@@ -77,7 +44,7 @@ final class PermissionDetectorProvider
   String toString() {
     return r'permissionDetectorProvider'
         ''
-        '($argument)';
+        '$argument';
   }
 
   @$internal
@@ -96,23 +63,12 @@ final class PermissionDetectorProvider
 }
 
 String _$permissionDetectorHash() =>
-    r'5981e0b5ff2c14b0fcba1f90fe131201a9d6be78';
+    r'494b3bab43af4567b27db52de66d2a26ff03cc25';
 
 /// StreamNotifier that scans terminal stdout for Claude Code permission prompts.
 ///
-/// Emits the matched permission line (truncated to 80 chars) when a prompt is
-/// detected, or null when no permission prompt is present. The null emission
-/// drives the AnimatedSwitcher to hide the PermissionCard.
-///
-/// Detection is gated on session state — emits Stream.empty() while the initial
-/// connection is in progress (SshConnecting, loading, error). For all states that
-/// carry an active Terminal (SshConnected, SshReconnecting, SshFailed), the
-/// permission stream remains live so permission prompts still surface from the
-/// scrollback even during a mid-session drop.
-///
-/// Note: the SSH provider emits AsyncData on every countdown tick (1 Hz), so this
-/// provider rebuilds on each tick. Re-subscription is lightweight; .select() is not
-/// supported on generated provider types in Riverpod 3.x / riverpod_generator 4.x.
+/// Keyed by (machineId, tabId) so each tab has an independent detector instance
+/// even when two tabs connect to the same machine (SESS-TAB-01).
 
 final class PermissionDetectorFamily extends $Family
     with
@@ -121,7 +77,7 @@ final class PermissionDetectorFamily extends $Family
           AsyncValue<String?>,
           String?,
           Stream<String?>,
-          String
+          (String, String)
         > {
   PermissionDetectorFamily._()
     : super(
@@ -134,22 +90,11 @@ final class PermissionDetectorFamily extends $Family
 
   /// StreamNotifier that scans terminal stdout for Claude Code permission prompts.
   ///
-  /// Emits the matched permission line (truncated to 80 chars) when a prompt is
-  /// detected, or null when no permission prompt is present. The null emission
-  /// drives the AnimatedSwitcher to hide the PermissionCard.
-  ///
-  /// Detection is gated on session state — emits Stream.empty() while the initial
-  /// connection is in progress (SshConnecting, loading, error). For all states that
-  /// carry an active Terminal (SshConnected, SshReconnecting, SshFailed), the
-  /// permission stream remains live so permission prompts still surface from the
-  /// scrollback even during a mid-session drop.
-  ///
-  /// Note: the SSH provider emits AsyncData on every countdown tick (1 Hz), so this
-  /// provider rebuilds on each tick. Re-subscription is lightweight; .select() is not
-  /// supported on generated provider types in Riverpod 3.x / riverpod_generator 4.x.
+  /// Keyed by (machineId, tabId) so each tab has an independent detector instance
+  /// even when two tabs connect to the same machine (SESS-TAB-01).
 
-  PermissionDetectorProvider call(String machineId) =>
-      PermissionDetectorProvider._(argument: machineId, from: this);
+  PermissionDetectorProvider call(String machineId, String tabId) =>
+      PermissionDetectorProvider._(argument: (machineId, tabId), from: this);
 
   @override
   String toString() => r'permissionDetectorProvider';
@@ -157,25 +102,15 @@ final class PermissionDetectorFamily extends $Family
 
 /// StreamNotifier that scans terminal stdout for Claude Code permission prompts.
 ///
-/// Emits the matched permission line (truncated to 80 chars) when a prompt is
-/// detected, or null when no permission prompt is present. The null emission
-/// drives the AnimatedSwitcher to hide the PermissionCard.
-///
-/// Detection is gated on session state — emits Stream.empty() while the initial
-/// connection is in progress (SshConnecting, loading, error). For all states that
-/// carry an active Terminal (SshConnected, SshReconnecting, SshFailed), the
-/// permission stream remains live so permission prompts still surface from the
-/// scrollback even during a mid-session drop.
-///
-/// Note: the SSH provider emits AsyncData on every countdown tick (1 Hz), so this
-/// provider rebuilds on each tick. Re-subscription is lightweight; .select() is not
-/// supported on generated provider types in Riverpod 3.x / riverpod_generator 4.x.
+/// Keyed by (machineId, tabId) so each tab has an independent detector instance
+/// even when two tabs connect to the same machine (SESS-TAB-01).
 
 abstract class _$PermissionDetector extends $StreamNotifier<String?> {
-  late final _$args = ref.$arg as String;
-  String get machineId => _$args;
+  late final _$args = ref.$arg as (String, String);
+  String get machineId => _$args.$1;
+  String get tabId => _$args.$2;
 
-  Stream<String?> build(String machineId);
+  Stream<String?> build(String machineId, String tabId);
   @$mustCallSuper
   @override
   void runBuild() {
@@ -188,6 +123,6 @@ abstract class _$PermissionDetector extends $StreamNotifier<String?> {
               Object?,
               Object?
             >;
-    element.handleCreate(ref, () => build(_$args));
+    element.handleCreate(ref, () => build(_$args.$1, _$args.$2));
   }
 }
