@@ -26,7 +26,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 4: Reconexión Robusta** - Exponential backoff reconnection with inline banner, attempt counter, and Terminal scrollback preservation (completed 2026-06-20)
 - [ ] **Phase 5: Autenticación Biométrica** - Face ID/fingerprint app lock on cold launch and machine edit/delete, with background re-lock
 - [x] **Phase 6: Session Start Picker** - Per-machine working folder configuration and project picker sheet after SSH connects (completed 2026-06-20)
-- [ ] **Phase 7: Sesiones Múltiples con Tabs** - Independent SSH sessions per tab with dynamic tab strip, keepAlive session lifecycle, and isolated failure handling
+- [x] **Phase 7: Sesiones Múltiples con Tabs** - Independent SSH sessions per tab with dynamic tab strip, keepAlive session lifecycle, and isolated failure handling (completed 2026-06-21)
 
 ## Phase Details
 
@@ -213,4 +213,4 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7
 | 4. Reconexión Robusta | 3/3 | Complete   | 2026-06-20 |
 | 5. Autenticación Biométrica | 1/3 | In Progress|  |
 | 6. Session Start Picker | 2/2 | Complete   | 2026-06-20 |
-| 7. Sesiones Múltiples con Tabs | 0/? | Not started | - |
+| 7. Sesiones Múltiples con Tabs | 2/2 | Complete   | 2026-06-21 |
