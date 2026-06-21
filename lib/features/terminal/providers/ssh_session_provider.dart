@@ -55,6 +55,13 @@ class SshSession extends _$SshSession {
   /// SSHClient instances firing into the wrong connection (Pitfall 5).
   int _connectionGeneration = 0;
 
+  /// Close callback acquired at the start of build() to prevent autoDispose
+  /// from firing during IndexedStack tab switches (Phase 7 SESS-01/03).
+  /// SessionsNotifier.closeTab() calls closeAndDispose() which invokes this to
+  /// release disposal. Stored as void Function() because KeepAliveLink is not
+  /// exported in Riverpod 3's public API surface — the link is captured via closure.
+  void Function()? _releaseKeepAlive;
+
   /// StreamSubscriptions for stdout/stderr — cancelled and re-registered
   /// on each _connectOnce call to avoid duplicate listeners (Pitfall 6).
   StreamSubscription<String>? _stdoutSub;
@@ -72,6 +79,14 @@ class SshSession extends _$SshSession {
 
   @override
   Future<SshSessionState> build(String machineId) async {
+    // Prevent autoDispose from firing during IndexedStack tab switches (Phase 7 SESS-01/03).
+    // SessionsNotifier.closeTab() calls closeAndDispose() → _releaseKeepAlive() to allow disposal.
+    // Must be the very first call — before any await and before ref.onDispose — to avoid
+    // the autoDispose race during provider initialization (RESEARCH.md Pitfall 1).
+    // KeepAliveLink is not exported from Riverpod 3's public API, so we capture close() as closure.
+    final _link = ref.keepAlive();
+    _releaseKeepAlive = _link.close;
+
     // Register cleanup FIRST — before any awaits — so dispose always fires.
     ref.onDispose(() {
       _disposed = true;
@@ -386,6 +401,19 @@ class SshSession extends _$SshSession {
       _sshSession = null;
       state = AsyncData(SshFailed(_terminal!));
     }
+  }
+
+  /// Disconnects SSH cleanly then releases the keepAlive link so Riverpod
+  /// can autoDispose this provider family entry. Called by SessionsNotifier.closeTab().
+  ///
+  /// Teardown order: cancel() stops any active retry loop → close SSH objects
+  /// → release keepAlive so Riverpod fires ref.onDispose() cleanup.
+  void closeAndDispose() {
+    cancel(); // sets _cancelRequested = true, stops _countdownTimer
+    _sshSession?.close();
+    _client?.close();
+    _releaseKeepAlive?.call(); // allows Riverpod autoDispose to fire, triggering ref.onDispose()
+    _releaseKeepAlive = null;
   }
 
   /// Send a text command to the remote shell (InputBar "Send" button).
