@@ -33,7 +33,7 @@ Enviar un prompt a Claude Code desde el teléfono y ver la respuesta llegar — 
 
 ### Active
 
-- [ ] Usuario puede tener múltiples sesiones SSH abiertas simultáneamente y navegar entre ellas con tabs
+- ✓ Usuario puede tener múltiples sesiones SSH abiertas simultáneamente y navegar entre ellas con tabs — v2.0 Phase 7
 - ✓ Al iniciar una nueva sesión, el usuario puede elegir empezar en blanco o cargar un proyecto — v2.0 Phase 6
 - ✓ Usuario puede configurar una lista de carpetas de trabajo por máquina — v2.0 Phase 6
 - ✓ La app requiere autenticación biométrica al lanzarse (Face ID / huella / PIN) — v2.0 Phase 5
@@ -93,4 +93,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-06-20 after Phase 6 complete (session start picker)*
+*Last updated: 2026-06-21 after Phase 7 complete (multiple sessions with tabs) — all v2.0 phases executed*
