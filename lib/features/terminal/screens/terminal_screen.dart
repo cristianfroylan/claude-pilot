@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 
 import '../../machines/providers/machines_provider.dart';
 import '../models/ssh_session_state.dart';
@@ -15,17 +14,21 @@ import '../widgets/terminal_view_wrapper.dart';
 
 /// TerminalScreen — SSH terminal view for a single machine.
 ///
-/// Shows connection status in the AppBar, renders ANSI output via TerminalView,
-/// and provides the InputBar for sending text and control signals.
+/// Pure terminal widget — no AppBar. The AppBar and tab strip are owned by
+/// SessionsScreen which embeds TerminalScreen inside an IndexedStack.
+///
+/// The isActive flag gates SnackBar emission for background tabs (SESS-04):
+/// only the active tab shows the 'Could not connect' SnackBar. The status dot
+/// on the tab chip changes color independently via sshSessionProvider state.
 ///
 /// The body switches on AsyncValue<SshSessionState>. States carrying a terminal
 /// (SshConnected, SshReconnecting, SshFailed) render TerminalViewWrapper to
 /// keep the xterm PTY mounted and scrollback preserved (RECON-05).
-/// Plan 04-03 will add overlay/banner widgets on top of this via a Stack.
 class TerminalScreen extends ConsumerStatefulWidget {
   final String machineId;
+  final bool isActive; // gates SnackBar emission for background tabs (SESS-04)
 
-  const TerminalScreen({super.key, required this.machineId});
+  const TerminalScreen({super.key, required this.machineId, this.isActive = true});
 
   @override
   ConsumerState<TerminalScreen> createState() => _TerminalScreenState();
@@ -68,13 +71,11 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen> {
         );
       }
 
-      if (nextState is SshFailed && prevState is! SshFailed) {
+      if (widget.isActive && nextState is SshFailed && prevState is! SshFailed) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Could not connect to $machineName.')),
         );
-        // Reset so the picker appears again if the user manually reconnects
-        // after exhausting automatic retries — the old shell is gone, this is
-        // effectively a new session.
+        // Reset so picker shows again if user manually reconnects after retry exhaustion.
         _pickerShown = false;
       }
 
@@ -109,19 +110,6 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen> {
       }
     });
 
-    // Build status label for AppBar subtitle.
-    final statusLabel = switch (sessionAsync.value) {
-      SshConnecting() => 'Connecting…',
-      SshReconnecting() => 'Reconnecting…',
-      SshFailed() => 'Connection failed',
-      SshConnected() => 'Connected',
-      null => 'Connecting…',
-    };
-
-    // Whether to show the pulsing dot in the AppBar.
-    final isPulsing = sessionAsync.value is SshConnecting ||
-        sessionAsync.value is SshReconnecting;
-
     // Clamp text scale factor to 1.3 to prevent terminal layout overflow
     // when the user has a large system font size (UI-SPEC.md).
     return MediaQuery(
@@ -132,42 +120,6 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen> {
       ),
       child: Scaffold(
         resizeToAvoidBottomInset: true,
-        appBar: AppBar(
-          backgroundColor:
-              Theme.of(context).colorScheme.surfaceContainerHigh,
-          automaticallyImplyLeading: false,
-          title: Row(
-            children: [
-              // Animated pulsing dot during connecting/reconnecting states.
-              if (isPulsing)
-                const Padding(
-                  padding: EdgeInsets.only(right: 8),
-                  child: _ConnectingDot(),
-                ),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(machineName),
-                    Text(
-                      statusLabel,
-                      style: Theme.of(context).textTheme.labelSmall,
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          actions: [
-            Semantics(
-              label: 'Disconnect',
-              child: IconButton(
-                icon: const Icon(Icons.close),
-                onPressed: () => context.pop(),
-              ),
-            ),
-          ],
-        ),
         body: SafeArea(
           top: true,
           bottom: false,
@@ -281,6 +233,9 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen> {
 ///
 /// Implements the "animated dot" specified in UI-SPEC.md interaction contract.
 /// Uses AnimationController with repeat(reverse: true) for a smooth pulse.
+///
+/// _ConnectingDot is retained for use by sessions_screen.dart's _PulsingDot
+/// (same animation pattern, parameterized by color).
 class _ConnectingDot extends StatefulWidget {
   const _ConnectingDot();
 

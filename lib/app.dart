@@ -5,7 +5,7 @@ import 'features/auth/providers/biometric_auth_provider.dart';
 import 'features/auth/screens/lock_screen.dart';
 import 'features/machines/screens/machine_list_screen.dart';
 import 'features/machines/screens/add_edit_machine_screen.dart';
-import 'features/terminal/screens/terminal_screen.dart';
+import 'features/sessions/screens/sessions_screen.dart';
 import 'core/theme/app_theme.dart';
 
 final _router = GoRouter(
@@ -25,13 +25,14 @@ final _router = GoRouter(
             machineId: state.pathParameters['id'],
           ),
         ),
-        GoRoute(
-          path: ':id/terminal',
-          builder: (context, state) => TerminalScreen(
-            machineId: state.pathParameters['id']!,
-          ),
-        ),
       ],
+    ),
+    GoRoute(
+      path: '/sessions',
+      builder: (context, state) {
+        final newMachineId = state.uri.queryParameters['newMachineId'];
+        return SessionsScreen(initialMachineId: newMachineId);
+      },
     ),
   ],
 );
