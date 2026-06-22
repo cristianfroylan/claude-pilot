@@ -386,7 +386,7 @@ class _AddEditMachineScreenState extends ConsumerState<AddEditMachineScreen> {
                   onTap: () => _collapseTap(_usernameCtrl),
                   decoration: const InputDecoration(
                     labelText: 'Username',
-                    hintText: 'cristian',
+                    hintText: 'your_user',
                     border: OutlineInputBorder(),
                   ),
                   validator: (v) =>
